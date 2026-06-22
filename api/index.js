@@ -4,7 +4,7 @@ export default async function handler(req, res) {
 
     res.setHeader('Content-Type', 'application/json; charset=UTF-8');
 
-    // ✅ GET SESSION TOKEN - Exact response format with Premium
+    // ✅ GET SESSION TOKEN - Fetch real API data and inject premium status
     if (urlPath.includes('/users/get-session-token')) {
         try {
             const realApiUrl = "https://kukufm.com" + urlPath;
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
                 body = params.toString();
             }
 
-            // 🔥 REAL API SE DATA FETCH KARO
+            // Fetch from real API
             const response = await fetch(realApiUrl, {
                 method: method,
                 headers: headers,
@@ -34,15 +34,11 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // ============================================================
-            // 🔥🔥🔥 2ND ID KO PREMIUM BANAO + BAD BOY BRANDING 🔥🔥🔥
-            // ============================================================
-            
+            // Inject Premium and Branding into real data
             if (data && data.user) {
-                // ✅ USER OBJECT - Premium + Bad Boy
                 data.user = {
                     ...data.user,
-                    has_premium: true,                                    // 🔥 Premium True
+                    has_premium: true,
                     premium_type: "🔥 BAD BOY PREMIUM 🔥",
                     premium_status: "ACTIVE",
                     premium_valid_till: "31 DECEMBER 9999",
@@ -57,20 +53,17 @@ export default async function handler(req, res) {
                     ]
                 };
                 
-                // ✅ NAME MEIN BAD BOY TAG
                 if (data.user.name && !data.user.name.includes('[ BAD BOY ]')) {
                     data.user.name = data.user.name + ' 🔥[ BAD BOY ]';
                 }
             }
             
-            // ✅ GLOBAL PREMIUM FLAGS
             data.has_premium = true;
             data.is_badboy_premium = true;
             data.premium_activated = true;
             data.badboy_mode = true;
             data.badboy_version = "2.0";
             
-            // ✅ TOKENS EXTEND KARO
             if (data.access_token) {
                 data.access_token_timestamp = Math.floor(Date.now() / 1000) + 31536000;
                 data.refresh_token_timestamp = Math.floor(Date.now() / 1000) + 31536000;
@@ -79,13 +72,13 @@ export default async function handler(req, res) {
             return res.status(200).json(data);
             
         } catch (error) {
-            console.error("Proxy Error:", error);
-            // ✅ FALLBACK - Premium Response
+            console.error("Proxy Error during session token fetch:", error);
+            // On failure, return the hardcoded premium response to keep the app working
             return res.status(200).json(getPremiumResponse());
         }
     }
 
-    // ✅ USER PROFILE - Premium Force
+    // ✅ USER PROFILE - Fetch real profile and force premium
     if (urlPath.includes('/users/me') || urlPath.includes('/profile') || 
         urlPath.includes('/get-profile')) {
         try {
@@ -103,7 +96,7 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // 🔥 PREMIUM FORCE
+            // Inject premium into real profile data
             data = {
                 ...data,
                 has_premium: true,
@@ -120,6 +113,7 @@ export default async function handler(req, res) {
             
             return res.status(200).json(data);
         } catch (error) {
+            console.error("Proxy Error during profile fetch:", error);
             return res.status(200).json(getPremiumProfile());
         }
     }
@@ -169,6 +163,7 @@ export default async function handler(req, res) {
             
             return res.status(response.status).json(data);
         } catch (error) {
+            console.error("Proxy Error during content fetch:", error);
             return res.status(200).json({ 
                 success: true, 
                 message: "🔥 Bad Boy Mode Active",
@@ -235,6 +230,7 @@ export default async function handler(req, res) {
         }
 
     } catch (error) {
+        console.error("General Proxy Error:", error);
         return res.status(500).json({ 
             code: 500, 
             message: "Proxy Error: " + error.message
