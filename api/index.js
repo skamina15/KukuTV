@@ -2,16 +2,13 @@ export default async function handler(req, res) {
     const urlPath = req.headers['x-invoke-path'] || req.url;
     const method = req.method;
 
-    // 🔥🔥🔥 FORCE NO CACHE - APP KO FRESH DATA LENE KE LIYE 🔥🔥🔥
+    // 🔥 CACHE CONTROL HEADERS
     res.setHeader('Content-Type', 'application/json; charset=UTF-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-    res.setHeader('Surrogate-Control', 'no-store');
-    res.setHeader('X-No-Cache', 'true');
-    res.setHeader('X-Timestamp', Date.now().toString());
 
-    // ✅ GET SESSION TOKEN - Exact response format with Premium
+    // ✅ GET SESSION TOKEN
     if (urlPath.includes('/users/get-session-token')) {
         try {
             const realApiUrl = "https://kukufm.com" + urlPath;
@@ -20,12 +17,8 @@ export default async function handler(req, res) {
             delete headers['accept-encoding'];
             delete headers['content-length'];
             delete headers['host'];
-            delete headers['if-none-match']; // 🔥 Remove ETag cache
-            delete headers['if-modified-since']; // 🔥 Remove date cache
-            
-            // 🔥 ADD CACHE BUSTING PARAMETER
-            const cacheBuster = `_t=${Date.now()}`;
-            const finalUrl = realApiUrl + (realApiUrl.includes('?') ? '&' : '?') + cacheBuster;
+            delete headers['if-none-match'];
+            delete headers['if-modified-since'];
             
             let body = req.body;
             if (typeof body === 'object' && !(body instanceof URLSearchParams)) {
@@ -38,7 +31,8 @@ export default async function handler(req, res) {
                 body = params.toString();
             }
 
-            const response = await fetch(finalUrl, {
+            // 🔥 NO CACHE BUSTER - App ko exact response chahiye
+            const response = await fetch(realApiUrl, {
                 method: method,
                 headers: headers,
                 body: body
@@ -46,16 +40,12 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // 🔥 ADD FRESH TIMESTAMP TO RESPONSE
-            data._cache_timestamp = Date.now();
-            data._fresh = true;
-            
             // ============================================================
-            // 🔥🔥🔥 2ND ID KO PREMIUM BANAO + BAD BOY BRANDING 🔥🔥🔥
+            // 🔥🔥🔥 PREMIUM + BAD BOY - EXACT RESPONSE 🔥🔥🔥
             // ============================================================
             
             if (data && data.user) {
-                // ✅ USER OBJECT - Premium + Bad Boy
+                // ✅ USER OBJECT - Premium + Bad Boy (NO EXTRA FIELDS)
                 data.user = {
                     ...data.user,
                     has_premium: true,
@@ -63,15 +53,7 @@ export default async function handler(req, res) {
                     premium_status: "ACTIVE",
                     premium_valid_till: "31 DECEMBER 9999",
                     is_badboy: true,
-                    badboy_tag: "[ BAD BOY ]",
-                    premium_features: [
-                        "🎧 Unlimited Podcasts",
-                        "🚫 No Ads",
-                        "📱 High Quality Audio",
-                        "🎁 Exclusive Bad Boy Content",
-                        "⚡ Priority Access"
-                    ],
-                    _last_updated: Date.now() // 🔥 Cache busting timestamp
+                    badboy_tag: "[ BAD BOY ]"
                 };
                 
                 if (data.user.name && !data.user.name.includes('[ BAD BOY ]')) {
@@ -79,12 +61,11 @@ export default async function handler(req, res) {
                 }
             }
             
+            // ✅ ONLY ORIGINAL FIELDS - NO EXTRA
             data.has_premium = true;
             data.is_badboy_premium = true;
             data.premium_activated = true;
             data.badboy_mode = true;
-            data.badboy_version = "2.0";
-            data._server_timestamp = Date.now();
             
             if (data.access_token) {
                 data.access_token_timestamp = Math.floor(Date.now() / 1000) + 31536000;
@@ -95,14 +76,11 @@ export default async function handler(req, res) {
             
         } catch (error) {
             console.error("Proxy Error:", error);
-            const fallback = getPremiumResponse();
-            fallback._is_fallback = true;
-            fallback._timestamp = Date.now();
-            return res.status(200).json(fallback);
+            return res.status(200).json(getPremiumResponse()); // FALLBACK
         }
     }
 
-    // ✅ USER PROFILE - Premium Force
+    // ✅ USER PROFILE
     if (urlPath.includes('/users/me') || urlPath.includes('/profile') || 
         urlPath.includes('/get-profile')) {
         try {
@@ -115,28 +93,20 @@ export default async function handler(req, res) {
             delete headers['if-none-match'];
             delete headers['if-modified-since'];
             
-            const cacheBuster = `_t=${Date.now()}`;
-            const finalUrl = realApiUrl + (realApiUrl.includes('?') ? '&' : '?') + cacheBuster;
-            
-            const response = await fetch(finalUrl, {
+            const response = await fetch(realApiUrl, {
                 method: method,
                 headers: headers
             });
             
             let data = await response.json();
             
-            // 🔥 PREMIUM FORCE
-            data = {
-                ...data,
-                has_premium: true,
-                is_premium: true,
-                premium_status: "ACTIVE [ BAD BOY ]",
-                premium_plan: "🔥 BAD BOY PREMIUM 🔥",
-                premium_valid_till: "31 DECEMBER 9999",
-                badboy_mode: true,
-                _server_timestamp: Date.now(),
-                _fresh: true
-            };
+            // 🔥 PREMIUM FORCE - EXACT FORMAT
+            data.has_premium = true;
+            data.is_premium = true;
+            data.premium_status = "ACTIVE [ BAD BOY ]";
+            data.premium_plan = "🔥 BAD BOY PREMIUM 🔥";
+            data.premium_valid_till = "31 DECEMBER 9999";
+            data.badboy_mode = true;
             
             if (data.name && !data.name.includes('[ BAD BOY ]')) {
                 data.name = data.name + ' 🔥[ BAD BOY ]';
@@ -144,13 +114,11 @@ export default async function handler(req, res) {
             
             return res.status(200).json(data);
         } catch (error) {
-            const fallback = getPremiumProfile();
-            fallback._timestamp = Date.now();
-            return res.status(200).json(fallback);
+            return res.status(200).json(getPremiumProfile());
         }
     }
 
-    // ✅ PREMIUM CHECK - Always True
+    // ✅ PREMIUM CHECK
     if (urlPath.includes('/premium') || urlPath.includes('/subscription') || 
         urlPath.includes('/check-premium') || urlPath.includes('/plan')) {
         return res.status(200).json({
@@ -159,20 +127,11 @@ export default async function handler(req, res) {
             premium_status: "ACTIVE [ BAD BOY ]",
             premium_plan: "🔥 BAD BOY PREMIUM 🔥",
             premium_valid_till: "31 DECEMBER 9999",
-            badboy_mode: true,
-            _server_timestamp: Date.now(),
-            _fresh: true,
-            features: [
-                "🎧 Unlimited Podcasts",
-                "🚫 No Ads",
-                "📱 High Quality Audio",
-                "🎁 Exclusive Bad Boy Content",
-                "⚡ Priority Access"
-            ]
+            badboy_mode: true
         });
     }
 
-    // ✅ CONTENT APIs - Real Data + Bad Boy Tag
+    // ✅ CONTENT APIs
     if (urlPath.includes('/episodes') || urlPath.includes('/shows') || 
         urlPath.includes('/podcasts') || urlPath.includes('/audio') ||
         urlPath.includes('/content') || urlPath.includes('/feed') ||
@@ -188,10 +147,7 @@ export default async function handler(req, res) {
             delete headers['if-none-match'];
             delete headers['if-modified-since'];
             
-            const cacheBuster = `_t=${Date.now()}`;
-            const finalUrl = realApiUrl + (realApiUrl.includes('?') ? '&' : '?') + cacheBuster;
-            
-            const response = await fetch(finalUrl, {
+            const response = await fetch(realApiUrl, {
                 method: method,
                 headers: headers,
                 body: method !== 'GET' ? req.body : undefined
@@ -199,29 +155,24 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             data = addBadBoyToContent(data);
-            data._server_timestamp = Date.now();
-            data._fresh = true;
             
             return res.status(response.status).json(data);
         } catch (error) {
             return res.status(200).json({ 
                 success: true, 
                 message: "🔥 Bad Boy Mode Active",
-                _server_timestamp: Date.now(),
-                _fresh: true,
                 data: []
             });
         }
     }
 
-    // ✅ Analytics - Always success
+    // ✅ Analytics
     if (urlPath.includes('/analytics') || urlPath.includes('/track') || 
         urlPath.includes('/log') || urlPath.includes('/heartbeat') ||
         urlPath.includes('/impression')) {
         return res.status(200).json({ 
             success: true, 
             status: "SUCCESS",
-            _server_timestamp: Date.now(),
             data: null 
         });
     }
@@ -236,9 +187,6 @@ export default async function handler(req, res) {
         delete headers['host'];
         delete headers['if-none-match'];
         delete headers['if-modified-since'];
-        
-        const cacheBuster = `_t=${Date.now()}`;
-        const finalUrl = targetUrl + (targetUrl.includes('?') ? '&' : '?') + cacheBuster;
         
         const fetchOptions = {
             method: method,
@@ -259,14 +207,12 @@ export default async function handler(req, res) {
             }
         }
 
-        const response = await fetch(finalUrl, fetchOptions);
+        const response = await fetch(targetUrl, fetchOptions);
         const contentType = response.headers.get('content-type') || '';
 
         if (contentType.includes('application/json')) {
             let data = await response.json();
             data._badboy_mode = true;
-            data._server_timestamp = Date.now();
-            data._fresh = true;
             return res.status(response.status).json(data);
         } else {
             const arrayBuffer = await response.arrayBuffer();
@@ -282,10 +228,105 @@ export default async function handler(req, res) {
     } catch (error) {
         return res.status(500).json({ 
             code: 500, 
-            message: "Proxy Error: " + error.message,
-            _timestamp: Date.now()
+            message: "Proxy Error: " + error.message
         });
     }
 }
 
-// ... rest of your functions remain same
+// ============= 🔥 FALLBACK RESPONSES (SAME FORMAT) =============
+
+function getPremiumResponse() {
+    return {
+        refresh_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4NDY5ODA2OSwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.PXswiUDtK7jQoOguJH5pZgpkIwfAishl1NmLwsB7LmxBnSRBpDuIUvQB6-CNQlrj4pJuODiCj_BhgYzp52GwqQ",
+        access_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4MjE1NTc5MCwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.uqqKkEauTebFWJeGR-pZah9rIj16X2qydH2J1f6uJxlt0lTbJuwhgfbgYWxZP2IzucS8LvLAfyT7veOX1QVbiA",
+        access_token_timestamp: Math.floor(Date.now() / 1000) + 31536000,
+        refresh_token_timestamp: Math.floor(Date.now() / 1000) + 31536000,
+        user: {
+            id: 146060028,
+            sub_profile_id: null,
+            name: "🔥 BadBoy Premium 🔥",
+            email: "",
+            avatar: {
+                "32": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
+                "64": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
+                "128": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
+                "256": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg"
+            },
+            uuid: "badboy_01f37dc7d2c249958116f5db0a77a515",
+            has_premium: true,
+            premium_type: "🔥 BAD BOY PREMIUM 🔥",
+            premium_status: "ACTIVE",
+            premium_valid_till: "31 DECEMBER 9999",
+            username: "badboy_premium",
+            phone: "+919999999999",
+            joined_on: Math.floor(Date.now() / 1000),
+            firebase_uid: "badboy_Vd2wAmCWBCULJ3n57Hxnzi9p1oo2",
+            is_badboy: true,
+            badboy_tag: "[ BAD BOY ]"
+        },
+        select_multi_profile: false,
+        has_premium: true,
+        is_badboy_premium: true,
+        premium_activated: true,
+        badboy_mode: true
+    };
+}
+
+function getPremiumProfile() {
+    return {
+        id: 146060028,
+        name: "🔥 BadBoy Premium 🔥",
+        email: "",
+        has_premium: true,
+        is_premium: true,
+        premium_status: "ACTIVE [ BAD BOY ]",
+        premium_plan: "🔥 BAD BOY PREMIUM 🔥",
+        premium_valid_till: "31 DECEMBER 9999",
+        badboy_mode: true,
+        avatar: {
+            "32": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
+            "64": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
+            "128": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
+            "256": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg"
+        }
+    };
+}
+
+// ============= 🔥 CONTENT TAGGING =============
+
+function addBadBoyToContent(data) {
+    if (!data || typeof data !== 'object') return data;
+    
+    const badBoyFields = ['title', 'name', 'show_name', 'episode_name', 'podcast_name', 
+                          'description', 'label', 'heading', 'subtitle', 'display_name'];
+    
+    if (Array.isArray(data)) {
+        return data.map(item => addTags(item, badBoyFields));
+    }
+    
+    const result = { ...data };
+    
+    ['data', 'results', 'items', 'content', 'podcasts', 'episodes', 'shows', 'list'].forEach(key => {
+        if (result[key] && Array.isArray(result[key])) {
+            result[key] = result[key].map(item => addTags(item, badBoyFields));
+        }
+    });
+    
+    return addTags(result, badBoyFields);
+}
+
+function addTags(obj, fields) {
+    if (!obj || typeof obj !== 'object') return obj;
+    
+    const result = { ...obj };
+    
+    fields.forEach(field => {
+        if (result[field] && typeof result[field] === 'string') {
+            if (!result[field].includes('[ BAD BOY ]')) {
+                result[field] = result[field] + ' [ BAD BOY ]';
+            }
+        }
+    });
+    
+    return result;
+}
