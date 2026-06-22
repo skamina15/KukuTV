@@ -2,9 +2,14 @@ export default async function handler(req, res) {
     const urlPath = req.headers['x-invoke-path'] || req.url;
     const method = req.method;
 
+    // 🔥 FORCE NO CACHE - Cache ko completely disable karo
     res.setHeader('Content-Type', 'application/json; charset=UTF-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, private, max-age=0, s-maxage=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
 
-    // ✅ GET SESSION TOKEN - Exact response format with Premium
+    // ✅ GET SESSION TOKEN - Response mein cache clear indicators
     if (urlPath.includes('/users/get-session-token')) {
         try {
             const realApiUrl = "https://kukufm.com" + urlPath;
@@ -25,7 +30,6 @@ export default async function handler(req, res) {
                 body = params.toString();
             }
 
-            // 🔥 REAL API SE DATA FETCH KARO
             const response = await fetch(realApiUrl, {
                 method: method,
                 headers: headers,
@@ -34,15 +38,12 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // ============================================================
-            // 🔥🔥🔥 2ND ID KO PREMIUM BANAO + BAD BOY BRANDING 🔥🔥🔥
-            // ============================================================
-            
+            // ✅ 2ND ID KA DATA WITH PREMIUM
             if (data && data.user) {
-                // ✅ USER OBJECT - Premium + Bad Boy
+                // 🔥 Clear cache flags - App ko bataye ki yeh naya data hai
                 data.user = {
                     ...data.user,
-                    has_premium: true,                                    // 🔥 Premium True
+                    has_premium: true,
                     premium_type: "🔥 BAD BOY PREMIUM 🔥",
                     premium_status: "ACTIVE",
                     premium_valid_till: "31 DECEMBER 9999",
@@ -54,38 +55,40 @@ export default async function handler(req, res) {
                         "📱 High Quality Audio",
                         "🎁 Exclusive Bad Boy Content",
                         "⚡ Priority Access"
-                    ]
+                    ],
+                    // 🔥 Local cache ko invalid karne ke liye
+                    _cache_buster: Date.now(),
+                    _force_refresh: true
                 };
                 
-                // ✅ NAME MEIN BAD BOY TAG
                 if (data.user.name && !data.user.name.includes('[ BAD BOY ]')) {
                     data.user.name = data.user.name + ' 🔥[ BAD BOY ]';
                 }
             }
             
-            // ✅ GLOBAL PREMIUM FLAGS
             data.has_premium = true;
             data.is_badboy_premium = true;
             data.premium_activated = true;
             data.badboy_mode = true;
             data.badboy_version = "2.0";
             
-            // ✅ TOKENS EXTEND KARO
             if (data.access_token) {
                 data.access_token_timestamp = Math.floor(Date.now() / 1000) + 31536000;
                 data.refresh_token_timestamp = Math.floor(Date.now() / 1000) + 31536000;
             }
             
+            // 🔥 Cache clear karne wale headers
+            res.setHeader('Set-Cookie', 'session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT');
+            
             return res.status(200).json(data);
             
         } catch (error) {
             console.error("Proxy Error:", error);
-            // ✅ FALLBACK - Premium Response
             return res.status(200).json(getPremiumResponse());
         }
     }
 
-    // ✅ USER PROFILE - Premium Force
+    // ✅ USER PROFILE - Premium Force + Cache Clear
     if (urlPath.includes('/users/me') || urlPath.includes('/profile') || 
         urlPath.includes('/get-profile')) {
         try {
@@ -103,7 +106,6 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // 🔥 PREMIUM FORCE
             data = {
                 ...data,
                 has_premium: true,
@@ -111,7 +113,8 @@ export default async function handler(req, res) {
                 premium_status: "ACTIVE [ BAD BOY ]",
                 premium_plan: "🔥 BAD BOY PREMIUM 🔥",
                 premium_valid_till: "31 DECEMBER 9999",
-                badboy_mode: true
+                badboy_mode: true,
+                _cache_buster: Date.now()
             };
             
             if (data.name && !data.name.includes('[ BAD BOY ]')) {
@@ -222,6 +225,7 @@ export default async function handler(req, res) {
         if (contentType.includes('application/json')) {
             let data = await response.json();
             data._badboy_mode = true;
+            data._cache_buster = Date.now();
             return res.status(response.status).json(data);
         } else {
             const arrayBuffer = await response.arrayBuffer();
@@ -278,13 +282,15 @@ function getPremiumResponse() {
                 "📱 High Quality Audio",
                 "🎁 Exclusive Bad Boy Content",
                 "⚡ Priority Access"
-            ]
+            ],
+            _cache_buster: Date.now()
         },
         select_multi_profile: false,
         has_premium: true,
         is_badboy_premium: true,
         premium_activated: true,
-        badboy_mode: true
+        badboy_mode: true,
+        _cache_buster: Date.now()
     };
 }
 
@@ -299,6 +305,7 @@ function getPremiumProfile() {
         premium_plan: "🔥 BAD BOY PREMIUM 🔥",
         premium_valid_till: "31 DECEMBER 9999",
         badboy_mode: true,
+        _cache_buster: Date.now(),
         avatar: {
             "32": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
             "64": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
@@ -352,6 +359,7 @@ function addTags(obj, fields) {
     
     result._premium_unlocked = true;
     result._badboy_mode = true;
+    result._cache_buster = Date.now();
     
     return result;
 }
