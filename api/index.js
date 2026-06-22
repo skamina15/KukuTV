@@ -3,8 +3,13 @@ export default async function handler(req, res) {
     const method = req.method;
 
     res.setHeader('Content-Type', 'application/json; charset=UTF-8');
+    
+    // 🔥 CACHE CONTROL HEADERS - Force app to fetch fresh data
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
 
-    // ✅ GET SESSION TOKEN - Exact response format with Premium
+    // ✅ GET SESSION TOKEN - ALWAYS RETURN 2ND ID
     if (urlPath.includes('/users/get-session-token')) {
         try {
             const realApiUrl = "https://kukufm.com" + urlPath;
@@ -25,7 +30,7 @@ export default async function handler(req, res) {
                 body = params.toString();
             }
 
-            // 🔥 REAL API SE DATA FETCH KARO
+            // REAL API SE DATA FETCH KARO
             const response = await fetch(realApiUrl, {
                 method: method,
                 headers: headers,
@@ -34,58 +39,36 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // ============================================================
-            // 🔥🔥🔥 2ND ID KO PREMIUM BANAO + BAD BOY BRANDING 🔥🔥🔥
-            // ============================================================
-            
+            // 🔥 HAR REQUEST MEIN FRESH 2ND ID DATA RETURN KARO
             if (data && data.user) {
-                // ✅ USER OBJECT - Premium + Bad Boy
+                // ✅ 2ND ID KA DATA - PREMIUM BANAYE BINA
                 data.user = {
                     ...data.user,
-                    has_premium: true,                                    // 🔥 Premium True
-                    premium_type: "🔥 BAD BOY PREMIUM 🔥",
-                    premium_status: "ACTIVE",
-                    premium_valid_till: "31 DECEMBER 9999",
-                    is_badboy: true,
-                    badboy_tag: "[ BAD BOY ]",
-                    premium_features: [
-                        "🎧 Unlimited Podcasts",
-                        "🚫 No Ads",
-                        "📱 High Quality Audio",
-                        "🎁 Exclusive Bad Boy Content",
-                        "⚡ Priority Access"
-                    ]
+                    has_premium: false,  // 🔥 Original status
+                    // premium_type: "🔥 BAD BOY PREMIUM 🔥",  // COMMENTED - No premium
+                    // premium_status: "ACTIVE",               // COMMENTED
+                    // premium_valid_till: "31 DECEMBER 9999", // COMMENTED
+                    // premium_features: [...]                  // COMMENTED
                 };
                 
-                // ✅ NAME MEIN BAD BOY TAG
-                if (data.user.name && !data.user.name.includes('[ BAD BOY ]')) {
-                    data.user.name = data.user.name + ' 🔥[ BAD BOY ]';
-                }
+                // ✅ NAME MEIN BAD BOY TAG NAHI - Keep original
+                // if (data.user.name && !data.user.name.includes('[ BAD BOY ]')) {
+                //     data.user.name = data.user.name + ' 🔥[ BAD BOY ]';
+                // }
             }
             
-            // ✅ GLOBAL PREMIUM FLAGS
-            data.has_premium = true;
-            data.is_badboy_premium = true;
-            data.premium_activated = true;
-            data.badboy_mode = true;
-            data.badboy_version = "2.0";
-            
-            // ✅ TOKENS EXTEND KARO
-            if (data.access_token) {
-                data.access_token_timestamp = Math.floor(Date.now() / 1000) + 31536000;
-                data.refresh_token_timestamp = Math.floor(Date.now() / 1000) + 31536000;
-            }
+            // ✅ TOKENS ORIGINAL RAHENGE
+            // data.has_premium = false;  // Original status
             
             return res.status(200).json(data);
             
         } catch (error) {
             console.error("Proxy Error:", error);
-            // ✅ FALLBACK - Premium Response
-            return res.status(200).json(getPremiumResponse());
+            return res.status(200).json(getSecondUserResponse());
         }
     }
 
-    // ✅ USER PROFILE - Premium Force
+    // ✅ USER PROFILE - Always 2nd ID
     if (urlPath.includes('/users/me') || urlPath.includes('/profile') || 
         urlPath.includes('/get-profile')) {
         try {
@@ -103,48 +86,31 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // 🔥 PREMIUM FORCE
+            // 🔥 2ND ID KA DATA (NO PREMIUM)
             data = {
                 ...data,
-                has_premium: true,
-                is_premium: true,
-                premium_status: "ACTIVE [ BAD BOY ]",
-                premium_plan: "🔥 BAD BOY PREMIUM 🔥",
-                premium_valid_till: "31 DECEMBER 9999",
-                badboy_mode: true
+                has_premium: false,  // Original status
+                // No premium fields added
             };
-            
-            if (data.name && !data.name.includes('[ BAD BOY ]')) {
-                data.name = data.name + ' 🔥[ BAD BOY ]';
-            }
             
             return res.status(200).json(data);
         } catch (error) {
-            return res.status(200).json(getPremiumProfile());
+            return res.status(200).json(getSecondUserProfile());
         }
     }
 
-    // ✅ PREMIUM CHECK - Always True
+    // ✅ PREMIUM CHECK - 2nd ID ka original status (false)
     if (urlPath.includes('/premium') || urlPath.includes('/subscription') || 
         urlPath.includes('/check-premium') || urlPath.includes('/plan')) {
         return res.status(200).json({
-            has_premium: true,
-            is_premium: true,
-            premium_status: "ACTIVE [ BAD BOY ]",
-            premium_plan: "🔥 BAD BOY PREMIUM 🔥",
-            premium_valid_till: "31 DECEMBER 9999",
-            badboy_mode: true,
-            features: [
-                "🎧 Unlimited Podcasts",
-                "🚫 No Ads",
-                "📱 High Quality Audio",
-                "🎁 Exclusive Bad Boy Content",
-                "⚡ Priority Access"
-            ]
+            has_premium: false,
+            is_premium: false,
+            premium_status: "INACTIVE",
+            user_id: 146060028
         });
     }
 
-    // ✅ CONTENT APIs - Real Data + Bad Boy Tag
+    // ✅ CONTENT APIs - Real Data (No Bad Boy Tag)
     if (urlPath.includes('/episodes') || urlPath.includes('/shows') || 
         urlPath.includes('/podcasts') || urlPath.includes('/audio') ||
         urlPath.includes('/content') || urlPath.includes('/feed') ||
@@ -165,13 +131,11 @@ export default async function handler(req, res) {
             });
             
             let data = await response.json();
-            data = addBadBoyToContent(data);
-            
+            // No Bad Boy tagging - Original data
             return res.status(response.status).json(data);
         } catch (error) {
             return res.status(200).json({ 
                 success: true, 
-                message: "🔥 Bad Boy Mode Active",
                 data: []
             });
         }
@@ -188,7 +152,7 @@ export default async function handler(req, res) {
         });
     }
 
-    // ✅ ALL OTHER APIs
+    // ✅ ALL OTHER APIs - Simple Proxy
     try {
         const targetUrl = "https://kukufm.com" + urlPath;
         
@@ -221,7 +185,6 @@ export default async function handler(req, res) {
 
         if (contentType.includes('application/json')) {
             let data = await response.json();
-            data._badboy_mode = true;
             return res.status(response.status).json(data);
         } else {
             const arrayBuffer = await response.arrayBuffer();
@@ -242,18 +205,18 @@ export default async function handler(req, res) {
     }
 }
 
-// ============= 🔥 FALLBACK RESPONSES =============
+// ============= 🔥 2ND ID FALLBACK RESPONSES =============
 
-function getPremiumResponse() {
+function getSecondUserResponse() {
     return {
         refresh_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4NDY5ODA2OSwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.PXswiUDtK7jQoOguJH5pZgpkIwfAishl1NmLwsB7LmxBnSRBpDuIUvQB6-CNQlrj4pJuODiCj_BhgYzp52GwqQ",
         access_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4MjE1NTc5MCwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.uqqKkEauTebFWJeGR-pZah9rIj16X2qydH2J1f6uJxlt0lTbJuwhgfbgYWxZP2IzucS8LvLAfyT7veOX1QVbiA",
-        access_token_timestamp: Math.floor(Date.now() / 1000) + 31536000,
-        refresh_token_timestamp: Math.floor(Date.now() / 1000) + 31536000,
+        access_token_timestamp: 1782155790,
+        refresh_token_timestamp: 1784698069,
         user: {
             id: 146060028,
             sub_profile_id: null,
-            name: "🔥 BadBoy Premium 🔥",
+            name: "History_Maestro999L",
             email: "",
             avatar: {
                 "32": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
@@ -261,97 +224,34 @@ function getPremiumResponse() {
                 "128": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
                 "256": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg"
             },
-            uuid: "badboy_01f37dc7d2c249958116f5db0a77a515",
-            has_premium: true,
-            premium_type: "🔥 BAD BOY PREMIUM 🔥",
-            premium_status: "ACTIVE",
-            premium_valid_till: "31 DECEMBER 9999",
-            username: "badboy_premium",
-            phone: "+919999999999",
-            joined_on: Math.floor(Date.now() / 1000),
-            firebase_uid: "badboy_Vd2wAmCWBCULJ3n57Hxnzi9p1oo2",
-            is_badboy: true,
-            badboy_tag: "[ BAD BOY ]",
-            premium_features: [
-                "🎧 Unlimited Podcasts",
-                "🚫 No Ads",
-                "📱 High Quality Audio",
-                "🎁 Exclusive Bad Boy Content",
-                "⚡ Priority Access"
-            ]
+            uuid: "01f37dc7d2c249958116f5db0a77a515",
+            has_premium: false,
+            username: "+918918753244",
+            phone: "+918918753244",
+            joined_on: 1752074486,
+            firebase_uid: "Vd2wAmCWBCULJ3n57Hxnzi9p1oo2"
         },
-        select_multi_profile: false,
-        has_premium: true,
-        is_badboy_premium: true,
-        premium_activated: true,
-        badboy_mode: true
+        select_multi_profile: false
     };
 }
 
-function getPremiumProfile() {
+function getSecondUserProfile() {
     return {
         id: 146060028,
-        name: "🔥 BadBoy Premium 🔥",
+        sub_profile_id: null,
+        name: "History_Maestro999L",
         email: "",
-        has_premium: true,
-        is_premium: true,
-        premium_status: "ACTIVE [ BAD BOY ]",
-        premium_plan: "🔥 BAD BOY PREMIUM 🔥",
-        premium_valid_till: "31 DECEMBER 9999",
-        badboy_mode: true,
         avatar: {
             "32": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
             "64": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
             "128": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
             "256": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg"
         },
-        features: [
-            "🎧 Unlimited Podcasts",
-            "🚫 No Ads",
-            "📱 High Quality Audio",
-            "🎁 Exclusive Bad Boy Content"
-        ]
+        uuid: "01f37dc7d2c249958116f5db0a77a515",
+        has_premium: false,
+        username: "+918918753244",
+        phone: "+918918753244",
+        joined_on: 1752074486,
+        firebase_uid: "Vd2wAmCWBCULJ3n57Hxnzi9p1oo2"
     };
-}
-
-// ============= 🔥 CONTENT TAGGING =============
-
-function addBadBoyToContent(data) {
-    if (!data || typeof data !== 'object') return data;
-    
-    const badBoyFields = ['title', 'name', 'show_name', 'episode_name', 'podcast_name', 
-                          'description', 'label', 'heading', 'subtitle', 'display_name'];
-    
-    if (Array.isArray(data)) {
-        return data.map(item => addTags(item, badBoyFields));
-    }
-    
-    const result = { ...data };
-    
-    ['data', 'results', 'items', 'content', 'podcasts', 'episodes', 'shows', 'list'].forEach(key => {
-        if (result[key] && Array.isArray(result[key])) {
-            result[key] = result[key].map(item => addTags(item, badBoyFields));
-        }
-    });
-    
-    return addTags(result, badBoyFields);
-}
-
-function addTags(obj, fields) {
-    if (!obj || typeof obj !== 'object') return obj;
-    
-    const result = { ...obj };
-    
-    fields.forEach(field => {
-        if (result[field] && typeof result[field] === 'string') {
-            if (!result[field].includes('[ BAD BOY ]')) {
-                result[field] = result[field] + ' [ BAD BOY ]';
-            }
-        }
-    });
-    
-    result._premium_unlocked = true;
-    result._badboy_mode = true;
-    
-    return result;
 }
