@@ -2,14 +2,9 @@ export default async function handler(req, res) {
     const urlPath = req.headers['x-invoke-path'] || req.url;
     const method = req.method;
 
-    // 🔥 FORCE NO CACHE - Har request pe fresh data
     res.setHeader('Content-Type', 'application/json; charset=UTF-8');
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, private, max-age=0');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '-1');
-    res.setHeader('Surrogate-Control', 'no-store');
 
-    // 🔥🔥🔥 2ND ID KA COMPLETE DATA
+    // 🔥 2ND ID KA COMPLETE DATA (EXACT RESPONSE)
     const SECOND_USER = {
         id: 146060028,
         sub_profile_id: null,
@@ -30,14 +25,27 @@ export default async function handler(req, res) {
     };
 
     const SECOND_TOKENS = {
-        access_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4MjE1NTc5MCwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.uqqKkEauTebFWJeGR-pZah9rIj16X2qydH2J1f6uJxlt0lTbJuwhgfbgYWxZP2IzucS8LvLAfyT7veOX1QVbiA",
         refresh_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4NDY5ODA2OSwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.PXswiUDtK7jQoOguJH5pZgpkIwfAishl1NmLwsB7LmxBnSRBpDuIUvQB6-CNQlrj4pJuODiCj_BhgYzp52GwqQ",
+        access_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4MjE1NTc5MCwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.uqqKkEauTebFWJeGR-pZah9rIj16X2qydH2J1f6uJxlt0lTbJuwhgfbgYWxZP2IzucS8LvLAfyT7veOX1QVbiA",
         access_token_timestamp: 1782155790,
         refresh_token_timestamp: 1784698069
     };
 
-    // ✅ GET SESSION TOKEN - 2nd ID ka response
+    // ============================================================
+    // ✅ GET SESSION TOKEN - COMPLETE RESPONSE
+    // ============================================================
     if (urlPath.includes('/users/get-session-token')) {
+        // ✅ Body se app_name check karo
+        let body = req.body;
+        if (typeof body === 'string') {
+            const params = new URLSearchParams(body);
+            const appName = params.get('app_name');
+            const accessToken = params.get('access_token');
+            
+            console.log("📱 App:", appName);
+            console.log("🔑 Token:", accessToken ? "Present" : "Missing");
+        }
+
         return res.status(200).json({
             refresh_token: SECOND_TOKENS.refresh_token,
             access_token: SECOND_TOKENS.access_token,
@@ -48,13 +56,17 @@ export default async function handler(req, res) {
         });
     }
 
-    // ✅ USER PROFILE - 2nd ID ka data
+    // ============================================================
+    // ✅ USER PROFILE
+    // ============================================================
     if (urlPath.includes('/users/me') || urlPath.includes('/profile') || 
         urlPath.includes('/get-profile') || urlPath.includes('/user')) {
         return res.status(200).json(SECOND_USER);
     }
 
-    // ✅ PREMIUM CHECK - 2nd ID ka original status
+    // ============================================================
+    // ✅ PREMIUM CHECK
+    // ============================================================
     if (urlPath.includes('/premium') || urlPath.includes('/subscription') || 
         urlPath.includes('/check-premium') || urlPath.includes('/plan')) {
         return res.status(200).json({
@@ -65,11 +77,14 @@ export default async function handler(req, res) {
         });
     }
 
-    // ✅ CONTENT APIs - REAL DATA with 2nd ID token
+    // ============================================================
+    // ✅ CONTENT APIs - PROXY WITH 2ND ID TOKEN
+    // ============================================================
     if (urlPath.includes('/episodes') || urlPath.includes('/shows') || 
         urlPath.includes('/podcasts') || urlPath.includes('/audio') ||
         urlPath.includes('/content') || urlPath.includes('/feed') ||
-        urlPath.includes('/recommend') || urlPath.includes('/search')) {
+        urlPath.includes('/recommend') || urlPath.includes('/search') ||
+        urlPath.includes('/discover') || urlPath.includes('/trending')) {
         
         try {
             const realApiUrl = "https://kukufm.com" + urlPath;
@@ -79,7 +94,7 @@ export default async function handler(req, res) {
             delete headers['content-length'];
             delete headers['host'];
             
-            // 2nd ID ka token use karo
+            // ✅ 2nd ID ka token use karo
             headers['authorization'] = `Bearer ${SECOND_TOKENS.access_token}`;
             
             const response = await fetch(realApiUrl, {
@@ -90,14 +105,15 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // Response mein user_id add karo
+            // ✅ Response mein user_id add karo
             if (typeof data === 'object' && data !== null) {
                 data._user_id = SECOND_USER.id;
-                data._user_name = SECOND_USER.name;
             }
             
             return res.status(response.status).json(data);
+            
         } catch (error) {
+            console.error("Content API Error:", error);
             return res.status(200).json({ 
                 success: true,
                 user_id: SECOND_USER.id,
@@ -106,7 +122,9 @@ export default async function handler(req, res) {
         }
     }
 
-    // ✅ Analytics - Always success
+    // ============================================================
+    // ✅ ANALYTICS
+    // ============================================================
     if (urlPath.includes('/analytics') || urlPath.includes('/track') || 
         urlPath.includes('/log') || urlPath.includes('/heartbeat') ||
         urlPath.includes('/impression') || urlPath.includes('/event')) {
@@ -117,7 +135,9 @@ export default async function handler(req, res) {
         });
     }
 
-    // ✅ ALL OTHER APIs - Proxy with 2nd ID token
+    // ============================================================
+    // ✅ ALL OTHER APIs
+    // ============================================================
     try {
         const targetUrl = "https://kukufm.com" + urlPath;
         
@@ -126,11 +146,12 @@ export default async function handler(req, res) {
         delete headers['content-length'];
         delete headers['host'];
         
-        // Har request mein 2nd ID ka token use karo
+        // ✅ Token replace karo
         if (headers['authorization']) {
             headers['authorization'] = `Bearer ${SECOND_TOKENS.access_token}`;
         }
         
+        // ✅ Body mein user_id replace karo
         let body = req.body;
         if (body && typeof body === 'object') {
             body = { ...body };
@@ -177,6 +198,7 @@ export default async function handler(req, res) {
         }
 
     } catch (error) {
+        console.error("Proxy Error:", error);
         return res.status(500).json({ 
             code: 500, 
             message: "Proxy Error: " + error.message
