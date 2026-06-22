@@ -3,8 +3,13 @@ export default async function handler(req, res) {
     const method = req.method;
 
     res.setHeader('Content-Type', 'application/json; charset=UTF-8');
+    
+    // 🔥 CACHE CONTROL - Force fresh data on every request
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
 
-    // ✅ GET SESSION TOKEN - Exact response format with Premium
+    // ✅ GET SESSION TOKEN - Previous working code
     if (urlPath.includes('/users/get-session-token')) {
         try {
             const realApiUrl = "https://kukufm.com" + urlPath;
@@ -35,14 +40,14 @@ export default async function handler(req, res) {
             let data = await response.json();
             
             // ============================================================
-            // 🔥🔥🔥 2ND ID KO PREMIUM BANAO + BAD BOY BRANDING 🔥🔥🔥
+            // 🔥🔥🔥 PREMIUM INJECTION (JESA PREVIOUS MEIN THA) 🔥🔥🔥
             // ============================================================
             
             if (data && data.user) {
                 // ✅ USER OBJECT - Premium + Bad Boy
                 data.user = {
                     ...data.user,
-                    has_premium: true,                                    // 🔥 Premium True
+                    has_premium: true,
                     premium_type: "🔥 BAD BOY PREMIUM 🔥",
                     premium_status: "ACTIVE",
                     premium_valid_till: "31 DECEMBER 9999",
