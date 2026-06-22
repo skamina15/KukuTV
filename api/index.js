@@ -1,238 +1,166 @@
 export default async function handler(req, res) {
-    const urlPath = req.headers['x-invoke-path'] || req.url;
+    const urlPath = req.headers["x-invoke-path"] || req.url;
     const method = req.method;
+    const realApiUrl = "https://kukufm.com" + urlPath;
 
-    res.setHeader('Content-Type', 'application/json; charset=UTF-8');
+    res.setHeader("Content-Type", "application/json; charset=UTF-8");
 
-    // ✅ GET SESSION TOKEN - Fetch real API data and inject premium status
-    if (urlPath.includes('/users/get-session-token')) {
-        try {
-            const realApiUrl = "https://kukufm.com" + urlPath;
-            
-            const headers = { ...req.headers };
-            delete headers['accept-encoding'];
-            delete headers['content-length'];
-            delete headers['host'];
-            
-            let body = req.body;
-            if (typeof body === 'object' && !(body instanceof URLSearchParams)) {
-                const params = new URLSearchParams();
-                for (let key in body) {
-                    if (body.hasOwnProperty(key)) {
-                        params.append(key, body[key]);
-                    }
-                }
-                body = params.toString();
-            }
-
-            // Fetch from real API
-            const response = await fetch(realApiUrl, {
-                method: method,
-                headers: headers,
-                body: body
-            });
-            
-            let data = await response.json();
-            
-            // Inject Premium and Branding into real data
-            if (data && data.user) {
-                data.user.has_premium = true;
-                data.user.premium_type = "🔥 BAD BOY PREMIUM 🔥";
-                data.user.premium_status = "ACTIVE";
-                data.user.premium_valid_till = "31 DECEMBER 9999";
-                data.user.is_badboy = true;
-                data.user.badboy_tag = "[ BAD BOY ]";
-                data.user.premium_features = [
-                    "🎧 Unlimited Podcasts",
-                    "🚫 No Ads",
-                    "📱 High Quality Audio",
-                    "🎁 Exclusive Bad Boy Content",
-                    "⚡ Priority Access"
-                ];
-                
-                if (data.user.name && !data.user.name.includes('[ BAD BOY ]')) {
-                    data.user.name = data.user.name + ' 🔥[ BAD BOY ]';
-                }
-            }
-            
-            data.has_premium = true;
-            data.is_badboy_premium = true;
-            data.premium_activated = true;
-            data.badboy_mode = true;
-            data.badboy_version = "2.0";
-            
-            if (data.access_token) {
-                data.access_token_timestamp = Math.floor(Date.now() / 1000) + 31536000;
-                data.refresh_token_timestamp = Math.floor(Date.now() / 1000) + 31536000;
-            }
-            
-            return res.status(200).json(data);
-            
-        } catch (error) {
-            console.error("Proxy Error during session token fetch: ", error);
-            // On failure, return the hardcoded premium response to keep the app working
-            return res.status(200).json(getPremiumResponse());
-        }
-    }
-
-    // ✅ USER PROFILE - Fetch real profile and force premium
-    if (urlPath.includes('/users/me') || urlPath.includes('/profile') || 
-        urlPath.includes('/get-profile')) {
-        try {
-            const realApiUrl = "https://kukufm.com" + urlPath;
-            
-            const headers = { ...req.headers };
-            delete headers['accept-encoding'];
-            delete headers['content-length'];
-            delete headers['host'];
-            
-            const response = await fetch(realApiUrl, {
-                method: method,
-                headers: headers
-            });
-            
-            let data = await response.json();
-            
-            // Inject premium into real profile data
-            data.has_premium = true;
-            data.is_premium = true;
-            data.premium_status = "ACTIVE [ BAD BOY ]";
-            data.premium_plan = "🔥 BAD BOY PREMIUM 🔥";
-            data.premium_valid_till = "31 DECEMBER 9999";
-            data.badboy_mode = true;
-            
-            if (data.name && !data.name.includes('[ BAD BOY ]')) {
-                data.name = data.name + ' 🔥[ BAD BOY ]';
-            }
-            
-            return res.status(200).json(data);
-        } catch (error) {
-            console.error("Proxy Error during profile fetch: ", error);
-            return res.status(200).json(getPremiumProfile());
-        }
-    }
-
-    // ✅ PREMIUM CHECK - Always True
-    if (urlPath.includes('/premium') || urlPath.includes('/subscription') || 
-        urlPath.includes('/check-premium') || urlPath.includes('/plan')) {
-        return res.status(200).json({
-            has_premium: true,
-            is_premium: true,
-            premium_status: "ACTIVE [ BAD BOY ]",
-            premium_plan: "🔥 BAD BOY PREMIUM 🔥",
-            premium_valid_till: "31 DECEMBER 9999",
-            badboy_mode: true,
-            features: [
-                "🎧 Unlimited Podcasts",
-                "🚫 No Ads",
-                "📱 High Quality Audio",
-                "🎁 Exclusive Bad Boy Content",
-                "⚡ Priority Access"
-            ]
-        });
-    }
-
-    // ✅ CONTENT APIs - Real Data + Bad Boy Tag
-    if (urlPath.includes('/episodes') || urlPath.includes('/shows') || 
-        urlPath.includes('/podcasts') || urlPath.includes('/audio') ||
-        urlPath.includes('/content') || urlPath.includes('/feed') ||
-        urlPath.includes('/recommend') || urlPath.includes('/search')) {
-        
-        try {
-            const realApiUrl = "https://kukufm.com" + urlPath;
-            
-            const headers = { ...req.headers };
-            delete headers['accept-encoding'];
-            delete headers['content-length'];
-            delete headers['host'];
-            
-            const response = await fetch(realApiUrl, {
-                method: method,
-                headers: headers,
-                body: method !== 'GET' ? req.body : undefined
-            });
-            
-            let data = await response.json();
-            data = addBadBoyToContent(data);
-            
-            return res.status(response.status).json(data);
-        } catch (error) {
-            console.error("Proxy Error during content fetch:", error);
-            return res.status(200).json({ 
-                success: true, 
-                message: "🔥 Bad Boy Mode Active",
-                data: []
-            });
-        }
-    }
-
-    // ✅ Analytics - Always success
-    if (urlPath.includes('/analytics') || urlPath.includes('/track') || 
-        urlPath.includes('/log') || urlPath.includes('/heartbeat') ||
-        urlPath.includes('/impression')) {
-        return res.status(200).json({ 
-            success: true, 
-            status: "SUCCESS",
-            data: null 
-        });
-    }
-
-    // ✅ ALL OTHER APIs
     try {
-        const targetUrl = "https://kukufm.com" + urlPath;
-        
         const headers = { ...req.headers };
-        delete headers['accept-encoding'];
-        delete headers['content-length'];
-        delete headers['host'];
-        
+        // Remove headers that might cause issues or are specific to the proxy environment
+        delete headers["accept-encoding"];
+        delete headers["content-length"];
+        delete headers["host"];
+        delete headers["x-invoke-path"]; // Remove proxy-specific header
+        delete headers["x-invoke-query"]; // Remove proxy-specific header
+
+        let requestBody = undefined;
+
+        // Handle POST request body specifically for application/x-www-form-urlencoded
+        if (method !== "GET" && method !== "HEAD" && req.body) {
+            const contentType = req.headers["content-type"];
+            if (contentType && contentType.includes("application/x-www-form-urlencoded")) {
+                // req.body for form-urlencoded might already be parsed by some frameworks
+                // If it's an object, convert it back to URLSearchParams string
+                if (typeof req.body === 'object') {
+                    const params = new URLSearchParams();
+                    for (const key in req.body) {
+                        if (Object.hasOwnProperty.call(req.body, key)) {
+                            params.append(key, req.body[key]);
+                        }
+                    }
+                    requestBody = params.toString();
+                } else if (typeof req.body === 'string') {
+                    requestBody = req.body;
+                }
+            } else if (typeof req.body === 'object') {
+                // For other content types like application/json, assume it's already parsed
+                requestBody = JSON.stringify(req.body);
+                headers["content-type"] = "application/json"; // Ensure correct content-type for JSON body
+            } else {
+                requestBody = req.body;
+            }
+        }
+
+        console.log(`Proxying request to: ${realApiUrl} with method: ${method}`);
+        console.log("Request Headers:", headers);
+        console.log("Request Body:", requestBody);
+
         const fetchOptions = {
             method: method,
             headers: headers,
         };
 
-        if (method !== 'GET' && method !== 'HEAD' && req.body) {
-            if (typeof req.body === 'object') {
-                const params = new URLSearchParams();
-                for (let key in req.body) {
-                    if (req.body.hasOwnProperty(key)) {
-                        params.append(key, req.body[key]);
-                    }
-                }
-                fetchOptions.body = params.toString();
-            } else {
-                fetchOptions.body = req.body;
-            }
+        if (requestBody !== undefined) {
+            fetchOptions.body = requestBody;
         }
 
-        const response = await fetch(targetUrl, fetchOptions);
-        const contentType = response.headers.get('content-type') || '';
+        const response = await fetch(realApiUrl, fetchOptions);
+        const contentType = response.headers.get("content-type") || "";
 
-        if (contentType.includes('application/json')) {
+        // Copy headers from real API response to proxy response
+        response.headers.forEach((value, key) => {
+            if (key !== "content-encoding" && key !== "content-length") {
+                res.setHeader(key, value);
+            }
+        });
+
+        if (contentType.includes("application/json")) {
             let data = await response.json();
-            data._badboy_mode = true;
+            console.log("Original API Response Data:", data);
+
+            // Inject premium status into the actual user data
+            data = injectPremiumStatus(data);
+            console.log("Modified API Response Data:", data);
+
             return res.status(response.status).json(data);
         } else {
+            // For non-JSON responses (e.g., images, audio), stream them directly
             const arrayBuffer = await response.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
-            response.headers.forEach((value, key) => {
-                if (key !== 'content-encoding' && key !== 'content-length') {
-                    res.setHeader(key, value);
-                }
-            });
             return res.status(response.status).send(buffer);
         }
 
     } catch (error) {
-        console.error("General Proxy Error:", error);
-        return res.status(500).json({ 
-            code: 500, 
-            message: "Proxy Error: " + error.message
-        });
+        console.error("Global Proxy Error:", error);
+        // Fallback to a generic premium response if the real API call fails
+        // This ensures the app always sees a premium user, even if the API is down
+        // However, it will use the hardcoded ID for the user object.
+        // For session token, it will return getPremiumResponse()
+        if (urlPath.includes("/users/get-session-token")) {
+            console.warn("Falling back to getPremiumResponse() due to error.");
+            return res.status(200).json(getPremiumResponse());
+        } else if (urlPath.includes("/users/me") || urlPath.includes("/profile") || urlPath.includes("/get-profile")) {
+            console.warn("Falling back to getPremiumProfile() due to error.");
+            return res.status(200).json(getPremiumProfile());
+        } else {
+            return res.status(500).json({
+                code: 500,
+                message: "Proxy Error: " + error.message,
+                _badboy_mode: true // Indicate badboy mode even on error
+            });
+        }
     }
 }
 
-// ============= 🔥 FALLBACK RESPONSES =============
+// ============= 🔥 PREMIUM INJECTION LOGIC =============
+
+function injectPremiumStatus(data) {
+    if (!data || typeof data !== 'object') return data;
+
+    // Handle session token response structure
+    if (data.user) {
+        data.user.has_premium = true;
+        data.user.premium_type = "🔥 BAD BOY PREMIUM 🔥";
+        data.user.premium_status = "ACTIVE";
+        data.user.premium_valid_till = "31 DECEMBER 9999";
+        data.user.is_badboy = true;
+        data.user.badboy_tag = "[ BAD BOY ]";
+        data.user.premium_features = [
+            "🎧 Unlimited Podcasts",
+            "🚫 No Ads",
+            "📱 High Quality Audio",
+            "🎁 Exclusive Bad Boy Content",
+            "⚡ Priority Access"
+        ];
+        if (data.user.name && !data.user.name.includes('[ BAD BOY ]')) {
+            data.user.name = data.user.name + ' 🔥[ BAD BOY ]';
+        }
+    }
+
+    // Handle direct profile response structure
+    if (data.id && (data.has_premium !== undefined || data.is_premium !== undefined)) {
+        data.has_premium = true;
+        data.is_premium = true;
+        data.premium_status = "ACTIVE [ BAD BOY ]";
+        data.premium_plan = "🔥 BAD BOY PREMIUM 🔥";
+        data.premium_valid_till = "31 DECEMBER 9999";
+        data.badboy_mode = true;
+        if (data.name && !data.name.includes('[ BAD BOY ]')) {
+            data.name = data.name + ' 🔥[ BAD BOY ]';
+        }
+    }
+
+    // Global premium flags
+    data.has_premium = true;
+    data.is_badboy_premium = true;
+    data.premium_activated = true;
+    data.badboy_mode = true;
+    data.badboy_version = "2.0";
+
+    // Extend tokens if present
+    if (data.access_token) {
+        data.access_token_timestamp = Math.floor(Date.now() / 1000) + 31536000;
+        data.refresh_token_timestamp = Math.floor(Date.now() / 1000) + 31536000;
+    }
+
+    // Apply bad boy tag to content fields recursively
+    data = addBadBoyToContent(data);
+
+    return data;
+}
+
+// ============= 🔥 FALLBACK RESPONSES (for when real API fails) =============
 
 function getPremiumResponse() {
     console.warn("Using getPremiumResponse() fallback.");
@@ -306,34 +234,36 @@ function getPremiumProfile() {
     };
 }
 
-// ============= 🔥 CONTENT TAGGING =============
+// ============= 🔥 CONTENT TAGGING (for all other APIs) =============
 
 function addBadBoyToContent(data) {
     if (!data || typeof data !== 'object') return data;
-    
-    const badBoyFields = ['title', 'name', 'show_name', 'episode_name', 'podcast_name', 
+
+    const badBoyFields = ['title', 'name', 'show_name', 'episode_name', 'podcast_name',
                           'description', 'label', 'heading', 'subtitle', 'display_name'];
-    
+
     if (Array.isArray(data)) {
         return data.map(item => addTags(item, badBoyFields));
     }
-    
+
     const result = { ...data };
-    
+
+    // Recursively apply tags to common content arrays
     ['data', 'results', 'items', 'content', 'podcasts', 'episodes', 'shows', 'list'].forEach(key => {
         if (result[key] && Array.isArray(result[key])) {
             result[key] = result[key].map(item => addTags(item, badBoyFields));
         }
     });
-    
+
+    // Apply tags to the top-level object itself
     return addTags(result, badBoyFields);
 }
 
 function addTags(obj, fields) {
     if (!obj || typeof obj !== 'object') return obj;
-    
+
     const result = { ...obj };
-    
+
     fields.forEach(field => {
         if (result[field] && typeof result[field] === 'string') {
             if (!result[field].includes('[ BAD BOY ]')) {
@@ -341,9 +271,9 @@ function addTags(obj, fields) {
             }
         }
     });
-    
+
     result._premium_unlocked = true;
     result._badboy_mode = true;
-    
+
     return result;
 }
