@@ -1,179 +1,430 @@
-// index.js - Complete proxy with hardcoded tokens for User B
+export default async function handler(req, res) {
+    const urlPath = req.headers['x-invoke-path'] || req.url;
+    const method = req.method;
 
-// User B ke tokens (jo aapne diye hain)
-const USER_B_TOKENS = {
-  access_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4MjExMzI2OSwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.AIv4ylrSaI0t3Y6B3niVf8vV7iGE98uvz2KUCMepKPWVnhekKx3GXNATFl-BGJtu-YBqh-0ZxxhSZyULiC67Kg",
-  refresh_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4NDY5ODA2OSwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.PXswiUDtK7jQoOguJH5pZgpkIwfAishl1NmLwsB7LmxBnSRBpDuIUvQB6-CNQlrj4pJuODiCj_BhgYzp52GwqQ",
-  user_id: 146060028,
-  user_name: "History_Maestro999L",
-  phone: "+918918753244"
-};
-
-module.exports = async (req, res) => {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, app-version, install-source, package-name, user-agent, accept-encoding, x-requested-with');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  
-  // Handle preflight
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  try {
-    const baseUrl = 'https://kukufm.com';
-    const targetPath = req.url;
-    const targetUrl = `${baseUrl}${targetPath}`;
+    // 🔥 STRONG CACHE BYPASS HEADERS
+    res.setHeader('Content-Type', 'application/json; charset=UTF-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
     
-    // Get original request body
-    let requestBody = '';
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      requestBody = await getRawBody(req);
-    }
-    
-    // Parse original body if it's form data
-    let parsedBody = {};
-    if (requestBody) {
-      try {
-        const params = new URLSearchParams(requestBody);
-        for (let [key, value] of params) {
-          parsedBody[key] = value;
+    // ✅ FORCE FRESH DATA - Cache bypass
+    const forceFresh = req.headers['x-force-fresh'] || req.query._fresh || Date.now();
+
+    // ✅ GET SESSION TOKEN - ALWAYS FRESH FROM API
+    if (urlPath.includes('/users/get-session-token')) {
+        try {
+            const realApiUrl = "https://kukufm.com" + urlPath;
+            
+            // 🔥 FORCE FULL HEADERS - No caching
+            const headers = { 
+                ...req.headers,
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            };
+            delete headers['accept-encoding'];
+            delete headers['content-length'];
+            delete headers['host'];
+            delete headers['if-none-match'];
+            delete headers['if-modified-since'];
+            
+            let body = req.body;
+            if (typeof body === 'object' && !(body instanceof URLSearchParams)) {
+                const params = new URLSearchParams();
+                for (let key in body) {
+                    if (body.hasOwnProperty(key)) {
+                        params.append(key, body[key]);
+                    }
+                }
+                body = params.toString();
+            }
+
+            // 🔥 REAL API SE FRESH DATA FETCH
+            console.log('🔄 Fetching fresh session token...');
+            const response = await fetch(realApiUrl, {
+                method: method,
+                headers: headers,
+                body: body,
+                cache: 'no-store' // FORCE no cache
+            });
+            
+            let data = await response.json();
+            
+            // 🔥 FORCE UPDATE - Sab kuch override
+            data = {
+                ...data,
+                refresh_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4NDY5ODA2OSwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.PXswiUDtK7jQoOguJH5pZgpkIwfAishl1NmLwsB7LmxBnSRBpDuIUvQB6-CNQlrj4pJuODiCj_BhgYzp52GwqQ",
+                access_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4MjE1NTc5MCwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.uqqKkEauTebFWJeGR-pZah9rIj16X2qydH2J1f6uJxlt0lTbJuwhgfbgYWxZP2IzucS8LvLAfyT7veOX1QVbiA",
+                access_token_timestamp: Math.floor(Date.now() / 1000) + 31536000,
+                refresh_token_timestamp: Math.floor(Date.now() / 1000) + 31536000,
+                _timestamp: Date.now(),
+                _fresh: true
+            };
+            
+            // ✅ USER OBJECT - Premium + Bad Boy (FORCE UPDATE)
+            if (data.user || true) {
+                data.user = {
+                    id: 146060028,
+                    sub_profile_id: null,
+                    name: "🔥 BadBoy Premium 🔥",
+                    email: "",
+                    avatar: {
+                        "32": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
+                        "64": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
+                        "128": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
+                        "256": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg"
+                    },
+                    uuid: "badboy_" + Date.now().toString(36),
+                    has_premium: true,
+                    premium_type: "🔥 BAD BOY PREMIUM 🔥",
+                    premium_status: "ACTIVE",
+                    premium_valid_till: "31 DECEMBER 9999",
+                    username: "badboy_premium_" + Date.now().toString(36),
+                    phone: "+918918753244",
+                    joined_on: Math.floor(Date.now() / 1000),
+                    firebase_uid: "badboy_" + Date.now().toString(36),
+                    is_badboy: true,
+                    badboy_tag: "[ BAD BOY ]",
+                    premium_features: [
+                        "🎧 Unlimited Podcasts",
+                        "🚫 No Ads",
+                        "📱 High Quality Audio",
+                        "🎁 Exclusive Bad Boy Content",
+                        "⚡ Priority Access"
+                    ],
+                    _last_updated: Date.now()
+                };
+            }
+            
+            // ✅ GLOBAL FLAGS
+            data.has_premium = true;
+            data.is_badboy_premium = true;
+            data.premium_activated = true;
+            data.badboy_mode = true;
+            data.badboy_version = "3.0";
+            data._force_update = true;
+            data._cache_buster = Date.now();
+            
+            console.log('✅ Fresh session data sent');
+            return res.status(200).json(data);
+            
+        } catch (error) {
+            console.error("Proxy Error:", error);
+            // ✅ FALLBACK - Always fresh premium response
+            return res.status(200).json(getPremiumResponse());
         }
-      } catch (e) {
-        console.log('Could not parse body as form data');
-      }
     }
-    
-    // Prepare headers - forward original headers but override with User B tokens
-    const headers = {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': req.headers['user-agent'] || 'kukufm-android-reels/5.8.1',
-      'Accept-Encoding': req.headers['accept-encoding'] || 'gzip',
-      'app-version': req.headers['app-version'] || '50401',
-      'install-source': req.headers['install-source'] || 'google_play',
-      'package-name': req.headers['package-name'] || 'com.vlv.aravali.reels',
-    };
-    
-    // Modify body to use User B tokens
-    let modifiedBody = new URLSearchParams(parsedBody);
-    
-    // Replace tokens with User B's tokens
-    modifiedBody.set('access_token', USER_B_TOKENS.access_token);
-    modifiedBody.set('refresh_token', USER_B_TOKENS.refresh_token);
-    
-    // For get-session-token endpoint, add additional tracking
-    if (targetPath.includes('/get-session-token/')) {
-      console.log(`🔄 Session request - Using User B: ${USER_B_TOKENS.user_name} (ID: ${USER_B_TOKENS.user_id})`);
-      
-      // Add custom headers to identify proxy usage
-      headers['x-proxy-user'] = USER_B_TOKENS.user_name;
-      headers['x-proxy-user-id'] = String(USER_B_TOKENS.user_id);
-    }
-    
-    // Get final body string
-    const finalBody = modifiedBody.toString();
-    headers['Content-Length'] = Buffer.byteLength(finalBody);
-    
-    console.log(`📤 Proxying to: ${targetUrl}`);
-    console.log(`👤 Using User: ${USER_B_TOKENS.user_name}`);
-    console.log(`📦 Body: ${finalBody}`);
-    
-    // Make request with User B tokens
-    const response = await fetch(targetUrl, {
-      method: req.method,
-      headers: headers,
-      body: req.method !== 'GET' && req.method !== 'HEAD' ? finalBody : undefined,
-    });
-    
-    // Get response
-    let responseBody = await response.text();
-    console.log(`📥 Response status: ${response.status}`);
-    
-    // Parse and modify response if JSON
-    let finalResponse = responseBody;
-    try {
-      const jsonData = JSON.parse(responseBody);
-      
-      // Ensure response contains User B data
-      if (jsonData.user) {
-        // Double-check user data matches User B
-        jsonData.user.id = USER_B_TOKENS.user_id;
-        jsonData.user.name = USER_B_TOKENS.user_name;
-        jsonData.user.phone = USER_B_TOKENS.phone;
-        jsonData.user.username = USER_B_TOKENS.phone;
-        
-        console.log(`✅ Response modified - User: ${jsonData.user.name}`);
-      }
-      
-      // If tokens in response, ensure they match User B
-      if (jsonData.access_token) {
-        // Keep original token from response, but log it
-        console.log(`🔑 New access token received for User B`);
-      }
-      
-      finalResponse = JSON.stringify(jsonData);
-    } catch (e) {
-      // Not JSON, pass through
-      console.log('Response is not JSON');
-    }
-    
-    // Forward response with CORS
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    
-    const contentType = response.headers.get('content-type');
-    if (contentType) {
-      res.setHeader('Content-Type', contentType);
-    }
-    
-    res.status(response.status).send(finalResponse);
-    
-  } catch (error) {
-    console.error('❌ Proxy Error:', error);
-    res.status(500).json({
-      error: 'Proxy error',
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-};
 
-// Helper: Read raw body
-function getRawBody(req) {
-  return new Promise((resolve, reject) => {
-    let body = '';
-    req.on('data', chunk => {
-      body += chunk.toString();
-    });
-    req.on('end', () => {
-      resolve(body);
-    });
-    req.on('error', reject);
-  });
+    // ✅ USER PROFILE - FORCE FRESH
+    if (urlPath.includes('/users/me') || urlPath.includes('/profile') || 
+        urlPath.includes('/get-profile')) {
+        try {
+            const realApiUrl = "https://kukufm.com" + urlPath;
+            
+            const headers = { 
+                ...req.headers,
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            };
+            delete headers['accept-encoding'];
+            delete headers['content-length'];
+            delete headers['host'];
+            delete headers['if-none-match'];
+            delete headers['if-modified-since'];
+            
+            const response = await fetch(realApiUrl, {
+                method: method,
+                headers: headers,
+                cache: 'no-store'
+            });
+            
+            let data = await response.json();
+            
+            // 🔥 FORCE PREMIUM
+            data = {
+                ...data,
+                has_premium: true,
+                is_premium: true,
+                premium_status: "ACTIVE [ BAD BOY ]",
+                premium_plan: "🔥 BAD BOY PREMIUM 🔥",
+                premium_valid_till: "31 DECEMBER 9999",
+                badboy_mode: true,
+                _cache_buster: Date.now(),
+                _fresh: true
+            };
+            
+            if (data.name && !data.name.includes('[ BAD BOY ]')) {
+                data.name = "🔥 BadBoy Premium 🔥";
+            }
+            
+            console.log('✅ Fresh profile data sent');
+            return res.status(200).json(data);
+        } catch (error) {
+            return res.status(200).json(getPremiumProfile());
+        }
+    }
+
+    // ✅ PREMIUM CHECK - Always fresh true
+    if (urlPath.includes('/premium') || urlPath.includes('/subscription') || 
+        urlPath.includes('/check-premium') || urlPath.includes('/plan')) {
+        return res.status(200).json({
+            has_premium: true,
+            is_premium: true,
+            premium_status: "ACTIVE [ BAD BOY ]",
+            premium_plan: "🔥 BAD BOY PREMIUM 🔥",
+            premium_valid_till: "31 DECEMBER 9999",
+            badboy_mode: true,
+            _timestamp: Date.now(),
+            _fresh: true,
+            features: [
+                "🎧 Unlimited Podcasts",
+                "🚫 No Ads",
+                "📱 High Quality Audio",
+                "🎁 Exclusive Bad Boy Content",
+                "⚡ Priority Access"
+            ]
+        });
+    }
+
+    // ✅ CONTENT APIs - Real Data + Bad Boy Tag
+    if (urlPath.includes('/episodes') || urlPath.includes('/shows') || 
+        urlPath.includes('/podcasts') || urlPath.includes('/audio') ||
+        urlPath.includes('/content') || urlPath.includes('/feed') ||
+        urlPath.includes('/recommend') || urlPath.includes('/search')) {
+        
+        try {
+            const realApiUrl = "https://kukufm.com" + urlPath;
+            
+            const headers = { 
+                ...req.headers,
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            };
+            delete headers['accept-encoding'];
+            delete headers['content-length'];
+            delete headers['host'];
+            delete headers['if-none-match'];
+            delete headers['if-modified-since'];
+            
+            const response = await fetch(realApiUrl, {
+                method: method,
+                headers: headers,
+                body: method !== 'GET' ? req.body : undefined,
+                cache: 'no-store'
+            });
+            
+            let data = await response.json();
+            data = addBadBoyToContent(data);
+            data._fresh = true;
+            data._timestamp = Date.now();
+            
+            return res.status(response.status).json(data);
+        } catch (error) {
+            return res.status(200).json({ 
+                success: true, 
+                message: "🔥 Bad Boy Mode Active",
+                _fresh: true,
+                data: []
+            });
+        }
+    }
+
+    // ✅ Analytics - Always success
+    if (urlPath.includes('/analytics') || urlPath.includes('/track') || 
+        urlPath.includes('/log') || urlPath.includes('/heartbeat') ||
+        urlPath.includes('/impression')) {
+        return res.status(200).json({ 
+            success: true, 
+            status: "SUCCESS",
+            _timestamp: Date.now(),
+            data: null 
+        });
+    }
+
+    // ✅ ALL OTHER APIs
+    try {
+        const targetUrl = "https://kukufm.com" + urlPath;
+        
+        const headers = { 
+            ...req.headers,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+        };
+        delete headers['accept-encoding'];
+        delete headers['content-length'];
+        delete headers['host'];
+        delete headers['if-none-match'];
+        delete headers['if-modified-since'];
+        
+        const fetchOptions = {
+            method: method,
+            headers: headers,
+            cache: 'no-store'
+        };
+
+        if (method !== 'GET' && method !== 'HEAD' && req.body) {
+            if (typeof req.body === 'object') {
+                const params = new URLSearchParams();
+                for (let key in req.body) {
+                    if (req.body.hasOwnProperty(key)) {
+                        params.append(key, req.body[key]);
+                    }
+                }
+                fetchOptions.body = params.toString();
+            } else {
+                fetchOptions.body = req.body;
+            }
+        }
+
+        const response = await fetch(targetUrl, fetchOptions);
+        const contentType = response.headers.get('content-type') || '';
+
+        if (contentType.includes('application/json')) {
+            let data = await response.json();
+            data._badboy_mode = true;
+            data._fresh = true;
+            data._timestamp = Date.now();
+            return res.status(response.status).json(data);
+        } else {
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            response.headers.forEach((value, key) => {
+                if (key !== 'content-encoding' && key !== 'content-length') {
+                    res.setHeader(key, value);
+                }
+            });
+            return res.status(response.status).send(buffer);
+        }
+
+    } catch (error) {
+        return res.status(500).json({ 
+            code: 500, 
+            message: "Proxy Error: " + error.message,
+            _timestamp: Date.now()
+        });
+    }
 }
 
-// Local development server
-if (require.main === module) {
-  const http = require('http');
-  const url = require('url');
-  
-  const server = http.createServer(async (req, res) => {
-    const parsedUrl = url.parse(req.url, true);
-    req.url = parsedUrl.pathname + (parsedUrl.search || '');
+// ============= 🔥 FALLBACK RESPONSES =============
+
+function getPremiumResponse() {
+    return {
+        refresh_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4NDY5ODA2OSwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.PXswiUDtK7jQoOguJH5pZgpkIwfAishl1NmLwsB7LmxBnSRBpDuIUvQB6-CNQlrj4pJuODiCj_BhgYzp52GwqQ",
+        access_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4MjE1NTc5MCwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.uqqKkEauTebFWJeGR-pZah9rIj16X2qydH2J1f6uJxlt0lTbJuwhgfbgYWxZP2IzucS8LvLAfyT7veOX1QVbiA",
+        access_token_timestamp: Math.floor(Date.now() / 1000) + 31536000,
+        refresh_token_timestamp: Math.floor(Date.now() / 1000) + 31536000,
+        _timestamp: Date.now(),
+        _fresh: true,
+        user: {
+            id: 146060028,
+            sub_profile_id: null,
+            name: "🔥 BadBoy Premium 🔥",
+            email: "",
+            avatar: {
+                "32": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
+                "64": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
+                "128": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
+                "256": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg"
+            },
+            uuid: "badboy_" + Date.now().toString(36),
+            has_premium: true,
+            premium_type: "🔥 BAD BOY PREMIUM 🔥",
+            premium_status: "ACTIVE",
+            premium_valid_till: "31 DECEMBER 9999",
+            username: "badboy_" + Date.now().toString(36),
+            phone: "+918918753244",
+            joined_on: Math.floor(Date.now() / 1000),
+            firebase_uid: "badboy_" + Date.now().toString(36),
+            is_badboy: true,
+            badboy_tag: "[ BAD BOY ]",
+            premium_features: [
+                "🎧 Unlimited Podcasts",
+                "🚫 No Ads",
+                "📱 High Quality Audio",
+                "🎁 Exclusive Bad Boy Content",
+                "⚡ Priority Access"
+            ],
+            _last_updated: Date.now()
+        },
+        select_multi_profile: false,
+        has_premium: true,
+        is_badboy_premium: true,
+        premium_activated: true,
+        badboy_mode: true
+    };
+}
+
+function getPremiumProfile() {
+    return {
+        id: 146060028,
+        name: "🔥 BadBoy Premium 🔥",
+        email: "",
+        has_premium: true,
+        is_premium: true,
+        premium_status: "ACTIVE [ BAD BOY ]",
+        premium_plan: "🔥 BAD BOY PREMIUM 🔥",
+        premium_valid_till: "31 DECEMBER 9999",
+        badboy_mode: true,
+        _timestamp: Date.now(),
+        _fresh: true,
+        avatar: {
+            "32": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
+            "64": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
+            "128": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
+            "256": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg"
+        },
+        features: [
+            "🎧 Unlimited Podcasts",
+            "🚫 No Ads",
+            "📱 High Quality Audio",
+            "🎁 Exclusive Bad Boy Content"
+        ]
+    };
+}
+
+// ============= 🔥 CONTENT TAGGING =============
+
+function addBadBoyToContent(data) {
+    if (!data || typeof data !== 'object') return data;
     
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      const body = await getRawBody(req);
-      if (body) req.body = body;
+    const badBoyFields = ['title', 'name', 'show_name', 'episode_name', 'podcast_name', 
+                          'description', 'label', 'heading', 'subtitle', 'display_name'];
+    
+    if (Array.isArray(data)) {
+        return data.map(item => addTags(item, badBoyFields));
     }
     
-    await module.exports(req, res);
-  });
-  
-  const PORT = process.env.PORT || 3000;
-  server.listen(PORT, () => {
-    console.log(`🚀 Proxy running on http://localhost:${PORT}`);
-    console.log(`👤 Using User B: ${USER_B_TOKENS.user_name} (ID: ${USER_B_TOKENS.user_id})`);
-    console.log(`📱 App will automatically use User B tokens`);
-  });
+    const result = { ...data };
+    
+    ['data', 'results', 'items', 'content', 'podcasts', 'episodes', 'shows', 'list'].forEach(key => {
+        if (result[key] && Array.isArray(result[key])) {
+            result[key] = result[key].map(item => addTags(item, badBoyFields));
+        }
+    });
+    
+    result._fresh = true;
+    result._timestamp = Date.now();
+    return addTags(result, badBoyFields);
+}
+
+function addTags(obj, fields) {
+    if (!obj || typeof obj !== 'object') return obj;
+    
+    const result = { ...obj };
+    
+    fields.forEach(field => {
+        if (result[field] && typeof result[field] === 'string') {
+            if (!result[field].includes('[ BAD BOY ]')) {
+                result[field] = result[field] + ' [ BAD BOY ]';
+            }
+        }
+    });
+    
+    result._premium_unlocked = true;
+    result._badboy_mode = true;
+    result._fresh = true;
+    
+    return result;
 }
