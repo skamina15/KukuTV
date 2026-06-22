@@ -1,213 +1,179 @@
-export const config = {
-  api: { bodyParser: false },
+// index.js - Complete proxy with hardcoded tokens for User B
+
+// User B ke tokens (jo aapne diye hain)
+const USER_B_TOKENS = {
+  access_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4MjExMzI2OSwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.AIv4ylrSaI0t3Y6B3niVf8vV7iGE98uvz2KUCMepKPWVnhekKx3GXNATFl-BGJtu-YBqh-0ZxxhSZyULiC67Kg",
+  refresh_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4NDY5ODA2OSwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.PXswiUDtK7jQoOguJH5pZgpkIwfAishl1NmLwsB7LmxBnSRBpDuIUvQB6-CNQlrj4pJuODiCj_BhgYzp52GwqQ",
+  user_id: 146060028,
+  user_name: "History_Maestro999L",
+  phone: "+918918753244"
 };
 
-// Valid tokens (2026 tak valid)
-const VALID_ACCESS_TOKEN = 'eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozNTQwMzAzODQsImV4cCI6MTc4MjAzODI4NSwidW5pcXVlX2lkIjoiMTIyNWVlOWEtNjM3Yi00ODU0LTgyNzktMDU5YWE0NDYwZGQ4In0.0EkSVEotyTMnuk3IjF4lYypCBKDMSpis-w4tfqG8I5n_nCnvmeRqcHT5hkaj_dWpKHMfIjr0BYrbf4DcXqHBzQ';
-const VALID_REFRESH_TOKEN = 'eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozNTQwMzAzODQsImV4cCI6MTc4NDYyMzA4NSwidW5pcXVlX2lkIjoiMTIyNWVlOWEtNjM3Yi00ODU0LTgyNzktMDU5YWE0NDYwZGQ4In0.tBNEygngKYWBmpQHNXslSnAjuQ_h4FNacErGyw9mA-3HBvN2EzEiTjvD3C2hKP-hdz5wwNOSVO4j4CFvlAhjFA';
-
-export default async function handler(req, res) {
-  // CORS Headers
+module.exports = async (req, res) => {
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, app-version, install-source, package-name, user-agent, accept-encoding, x-requested-with');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  if (req.url === '/' || req.url === '') {
-    return res.status(200).json({ 
-      message: 'Kuku FM API Proxy – use with app headers.',
-      status: 'active'
-    });
-  }
-
-  // ----- Guard: Required Headers Check -----
-  const pkg = req.headers['package-name'];
-  const ua = req.headers['user-agent'];
-  
-  if (!pkg || !pkg.includes('com.vlv.aravali.reels') || !ua || !ua.includes('kukufm-android-reels')) {
-    return res.status(403).json({ 
-      error: 'Forbidden – missing or invalid required headers',
-      required: ['package-name: com.vlv.aravali.reels', 'user-agent: kukufm-android-reels/*']
-    });
-  }
-
-  const BASE_URL = 'https://kukufm.com';
-  const targetUrl = new URL(req.url, BASE_URL).toString();
-
-  // Endpoints Configuration
-  const noAuthEndpoints = ['/api/v1.1/users/get-session-token/', '/v1.1/users/get-session-token/'];
-  const cacheEndpoints = ['/api/v2/payments', '/api/v3/home'];
-  
-  const isNoAuth = noAuthEndpoints.some(p => req.url.startsWith(p));
-  const isSessionTokenEndpoint = req.url.includes('/users/get-session-token/');
-  const useCache = cacheEndpoints.some(p => req.url.includes(p));
-
-  // ----- Build Headers -----
-  const headers = {
-    'client-country': 'IN',
-    'install-source': 'google_play',
-    'lang': 'english',
-    'app-version': '50401',
-    'user-agent': 'kukufm-android-reels/5.8.1',
-    'package-name': 'com.vlv.aravali.reels',
-    'Accept': 'application/json',
-  };
-
-  // Add Authorization if needed
-  if (!isNoAuth) {
-    const clientAuth = req.headers.authorization || req.headers.Authorization;
-    headers['Authorization'] = clientAuth || `jwt ${VALID_ACCESS_TOKEN}`;
-  }
-
-  // Cache control for specific endpoints
-  if (useCache && !isNoAuth) {
-    headers['cache-control'] = 'max-age=5';
-  }
-
-  // Copy content-type from request
-  if (req.headers['content-type']) {
-    headers['Content-Type'] = req.headers['content-type'];
-  }
-
-  // ----- Read Raw Body -----
-  let bodyBuffer = null;
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    bodyBuffer = await new Promise((resolve) => {
-      const chunks = [];
-      req.on('data', chunk => chunks.push(chunk));
-      req.on('end', () => resolve(Buffer.concat(chunks)));
-    });
-  }
-
-  // ==========================================
-  // INTERCEPT & REWRITE TOKENS IN REQUEST
-  // ==========================================
-  if (bodyBuffer && isSessionTokenEndpoint) {
-    const contentType = req.headers['content-type'] || '';
+  try {
+    const baseUrl = 'https://kukufm.com';
+    const targetPath = req.url;
+    const targetUrl = `${baseUrl}${targetPath}`;
     
-    // Handle application/x-www-form-urlencoded
-    if (contentType.includes('application/x-www-form-urlencoded')) {
-      let bodyStr = bodyBuffer.toString();
-      const params = new URLSearchParams(bodyStr);
-      
-      // Replace with valid tokens
-      if (params.has('access_token')) {
-        params.set('access_token', VALID_ACCESS_TOKEN);
-        console.log('✅ Replaced access_token in request');
-      }
-      if (params.has('refresh_token')) {
-        params.set('refresh_token', VALID_REFRESH_TOKEN);
-        console.log('✅ Replaced refresh_token in request');
-      }
-      
-      bodyStr = params.toString();
-      bodyBuffer = Buffer.from(bodyStr);
-      
-      // Update content-length
-      headers['Content-Length'] = Buffer.byteLength(bodyStr);
-      delete headers['content-length']; // Remove duplicate if exists
-      
-    } 
-    // Handle application/json
-    else if (contentType.includes('application/json')) {
+    // Get original request body
+    let requestBody = '';
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      requestBody = await getRawBody(req);
+    }
+    
+    // Parse original body if it's form data
+    let parsedBody = {};
+    if (requestBody) {
       try {
-        let bodyObj = JSON.parse(bodyBuffer.toString());
-        let modified = false;
-        
-        if (bodyObj.access_token) {
-          bodyObj.access_token = VALID_ACCESS_TOKEN;
-          modified = true;
+        const params = new URLSearchParams(requestBody);
+        for (let [key, value] of params) {
+          parsedBody[key] = value;
         }
-        if (bodyObj.refresh_token) {
-          bodyObj.refresh_token = VALID_REFRESH_TOKEN;
-          modified = true;
-        }
-        
-        if (modified) {
-          const newBody = JSON.stringify(bodyObj);
-          bodyBuffer = Buffer.from(newBody);
-          headers['Content-Length'] = Buffer.byteLength(newBody);
-          delete headers['content-length'];
-          console.log('✅ Replaced tokens in JSON request');
-        }
-      } catch (error) {
-        console.warn('⚠️ Could not parse JSON body:', error.message);
+      } catch (e) {
+        console.log('Could not parse body as form data');
       }
     }
-  }
-
-  // ==========================================
-  // MAKE REQUEST TO KUKU FM
-  // ==========================================
-  try {
-    const fetchOptions = {
+    
+    // Prepare headers - forward original headers but override with User B tokens
+    const headers = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': req.headers['user-agent'] || 'kukufm-android-reels/5.8.1',
+      'Accept-Encoding': req.headers['accept-encoding'] || 'gzip',
+      'app-version': req.headers['app-version'] || '50401',
+      'install-source': req.headers['install-source'] || 'google_play',
+      'package-name': req.headers['package-name'] || 'com.vlv.aravali.reels',
+    };
+    
+    // Modify body to use User B tokens
+    let modifiedBody = new URLSearchParams(parsedBody);
+    
+    // Replace tokens with User B's tokens
+    modifiedBody.set('access_token', USER_B_TOKENS.access_token);
+    modifiedBody.set('refresh_token', USER_B_TOKENS.refresh_token);
+    
+    // For get-session-token endpoint, add additional tracking
+    if (targetPath.includes('/get-session-token/')) {
+      console.log(`🔄 Session request - Using User B: ${USER_B_TOKENS.user_name} (ID: ${USER_B_TOKENS.user_id})`);
+      
+      // Add custom headers to identify proxy usage
+      headers['x-proxy-user'] = USER_B_TOKENS.user_name;
+      headers['x-proxy-user-id'] = String(USER_B_TOKENS.user_id);
+    }
+    
+    // Get final body string
+    const finalBody = modifiedBody.toString();
+    headers['Content-Length'] = Buffer.byteLength(finalBody);
+    
+    console.log(`📤 Proxying to: ${targetUrl}`);
+    console.log(`👤 Using User: ${USER_B_TOKENS.user_name}`);
+    console.log(`📦 Body: ${finalBody}`);
+    
+    // Make request with User B tokens
+    const response = await fetch(targetUrl, {
       method: req.method,
       headers: headers,
-    };
-
-    // Only add body for non-GET/HEAD requests
-    if (bodyBuffer && req.method !== 'GET' && req.method !== 'HEAD') {
-      fetchOptions.body = bodyBuffer;
-    }
-
-    console.log(`📤 Proxying ${req.method} ${targetUrl}`);
+      body: req.method !== 'GET' && req.method !== 'HEAD' ? finalBody : undefined,
+    });
     
-    const response = await fetch(targetUrl, fetchOptions);
+    // Get response
+    let responseBody = await response.text();
+    console.log(`📥 Response status: ${response.status}`);
     
-    // Read response
-    const responseBody = await response.text();
-    const contentType = response.headers.get('content-type') || 'application/json';
-
-    // ==========================================
-    // INTERCEPT & MODIFY RESPONSE TOKENS
-    // ==========================================
-    let finalBody = responseBody;
-    
-    if (isSessionTokenEndpoint && responseBody) {
-      try {
-        const responseObj = JSON.parse(responseBody);
-        let modified = false;
+    // Parse and modify response if JSON
+    let finalResponse = responseBody;
+    try {
+      const jsonData = JSON.parse(responseBody);
+      
+      // Ensure response contains User B data
+      if (jsonData.user) {
+        // Double-check user data matches User B
+        jsonData.user.id = USER_B_TOKENS.user_id;
+        jsonData.user.name = USER_B_TOKENS.user_name;
+        jsonData.user.phone = USER_B_TOKENS.phone;
+        jsonData.user.username = USER_B_TOKENS.phone;
         
-        // Replace tokens in response with our valid tokens
-        if (responseObj.access_token && responseObj.access_token !== VALID_ACCESS_TOKEN) {
-          responseObj.access_token = VALID_ACCESS_TOKEN;
-          modified = true;
-          console.log('✅ Replaced access_token in response');
-        }
-        if (responseObj.refresh_token && responseObj.refresh_token !== VALID_REFRESH_TOKEN) {
-          responseObj.refresh_token = VALID_REFRESH_TOKEN;
-          modified = true;
-          console.log('✅ Replaced refresh_token in response');
-        }
-        
-        // Also update timestamps if needed (add 1 year from now)
-        if (modified) {
-          const oneYearFromNow = Math.floor(Date.now() / 1000) + 31536000; // 1 year
-          responseObj.access_token_timestamp = oneYearFromNow;
-          responseObj.refresh_token_timestamp = oneYearFromNow;
-          finalBody = JSON.stringify(responseObj);
-          console.log('✅ Updated token timestamps');
-        }
-      } catch (error) {
-        console.warn('⚠️ Could not parse response JSON:', error.message);
+        console.log(`✅ Response modified - User: ${jsonData.user.name}`);
       }
+      
+      // If tokens in response, ensure they match User B
+      if (jsonData.access_token) {
+        // Keep original token from response, but log it
+        console.log(`🔑 New access token received for User B`);
+      }
+      
+      finalResponse = JSON.stringify(jsonData);
+    } catch (e) {
+      // Not JSON, pass through
+      console.log('Response is not JSON');
     }
-
-    // Send response
-    res.status(response.status);
+    
+    // Forward response with CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    
+    const contentType = response.headers.get('content-type');
     if (contentType) {
       res.setHeader('Content-Type', contentType);
     }
-    res.send(finalBody);
-
+    
+    res.status(response.status).send(finalResponse);
+    
   } catch (error) {
     console.error('❌ Proxy Error:', error);
-    return res.status(500).json({ 
-      error: 'Internal proxy error',
-      message: error.message 
+    res.status(500).json({
+      error: 'Proxy error',
+      message: error.message,
+      timestamp: new Date().toISOString()
     });
   }
+};
+
+// Helper: Read raw body
+function getRawBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+    req.on('end', () => {
+      resolve(body);
+    });
+    req.on('error', reject);
+  });
+}
+
+// Local development server
+if (require.main === module) {
+  const http = require('http');
+  const url = require('url');
+  
+  const server = http.createServer(async (req, res) => {
+    const parsedUrl = url.parse(req.url, true);
+    req.url = parsedUrl.pathname + (parsedUrl.search || '');
+    
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      const body = await getRawBody(req);
+      if (body) req.body = body;
+    }
+    
+    await module.exports(req, res);
+  });
+  
+  const PORT = process.env.PORT || 3000;
+  server.listen(PORT, () => {
+    console.log(`🚀 Proxy running on http://localhost:${PORT}`);
+    console.log(`👤 Using User B: ${USER_B_TOKENS.user_name} (ID: ${USER_B_TOKENS.user_id})`);
+    console.log(`📱 App will automatically use User B tokens`);
+  });
 }
