@@ -1,101 +1,231 @@
 export default async function handler(req, res) {
     const urlPath = req.headers['x-invoke-path'] || req.url;
     const method = req.method;
+    
+    const KUKUFM_BASE_URL = "https://kukufm.com";
 
     res.setHeader('Content-Type', 'application/json; charset=UTF-8');
 
-    // 🔥 2ND ID KA COMPLETE DATA (EXACT RESPONSE)
-    const SECOND_USER = {
+    // 🔥 HARDCODED PREMIUM USER DATA
+    const BADBOY_USER = {
         id: 146060028,
-        sub_profile_id: null,
-        name: "History_Maestro999L",
-        email: "",
+        name: "🔥 BadBoy Premium 🔥",
+        email: "badboy@premium.com",
+        username: "badboy_premium",
+        phone: "+919999999999",
+        has_premium: true,
+        premium_type: "🔥 BAD BOY PREMIUM 🔥",
+        premium_status: "ACTIVE",
+        premium_valid_till: "31 DECEMBER 9999",
+        is_badboy: true,
+        badboy_tag: "[ BAD BOY ]",
+        premium_features: [
+            "🎧 Unlimited Podcasts",
+            "🚫 No Ads",
+            "📱 High Quality Audio",
+            "🎁 Exclusive Bad Boy Content",
+            "⚡ Priority Access"
+        ],
         avatar: {
             "32": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
             "64": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
             "128": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
             "256": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg"
         },
-        uuid: "01f37dc7d2c249958116f5db0a77a515",
-        has_premium: false,
-        username: "+918918753244",
-        phone: "+918918753244",
-        joined_on: 1752074486,
-        firebase_uid: "Vd2wAmCWBCULJ3n57Hxnzi9p1oo2"
+        uuid: "badboy_01f37dc7d2c249958116f5db0a77a515",
+        joined_on: Math.floor(Date.now() / 1000),
+        firebase_uid: "badboy_Vd2wAmCWBCULJ3n57Hxnzi9p1oo2"
     };
 
-    const SECOND_TOKENS = {
-        refresh_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4NDY5ODA2OSwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.PXswiUDtK7jQoOguJH5pZgpkIwfAishl1NmLwsB7LmxBnSRBpDuIUvQB6-CNQlrj4pJuODiCj_BhgYzp52GwqQ",
+    const BADBOY_TOKENS = {
         access_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4MjE1NTc5MCwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.uqqKkEauTebFWJeGR-pZah9rIj16X2qydH2J1f6uJxlt0lTbJuwhgfbgYWxZP2IzucS8LvLAfyT7veOX1QVbiA",
-        access_token_timestamp: 1782155790,
-        refresh_token_timestamp: 1784698069
+        refresh_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4NDY5ODA2OSwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.PXswiUDtK7jQoOguJH5pZgpkIwfAishl1NmLwsB7LmxBnSRBpDuIUvQB6-CNQlrj4pJuODiCj_BhgYzp52GwqQ",
+        access_token_timestamp: Math.floor(Date.now() / 1000) + 31536000,
+        refresh_token_timestamp: Math.floor(Date.now() / 1000) + 31536000
     };
 
-    // ============================================================
-    // ✅ GET SESSION TOKEN - COMPLETE RESPONSE
-    // ============================================================
+    // ✅ GET SESSION TOKEN - REAL API se fetch karo + Premium inject karo
     if (urlPath.includes('/users/get-session-token')) {
-        // ✅ Body se app_name check karo
-        let body = req.body;
-        if (typeof body === 'string') {
-            const params = new URLSearchParams(body);
-            const appName = params.get('app_name');
-            const accessToken = params.get('access_token');
-            
-            console.log("📱 App:", appName);
-            console.log("🔑 Token:", accessToken ? "Present" : "Missing");
-        }
-
-        return res.status(200).json({
-            refresh_token: SECOND_TOKENS.refresh_token,
-            access_token: SECOND_TOKENS.access_token,
-            access_token_timestamp: SECOND_TOKENS.access_token_timestamp,
-            refresh_token_timestamp: SECOND_TOKENS.refresh_token_timestamp,
-            user: SECOND_USER,
-            select_multi_profile: false
-        });
-    }
-
-    // ============================================================
-    // ✅ USER PROFILE
-    // ============================================================
-    if (urlPath.includes('/users/me') || urlPath.includes('/profile') || 
-        urlPath.includes('/get-profile') || urlPath.includes('/user')) {
-        return res.status(200).json(SECOND_USER);
-    }
-
-    // ============================================================
-    // ✅ PREMIUM CHECK
-    // ============================================================
-    if (urlPath.includes('/premium') || urlPath.includes('/subscription') || 
-        urlPath.includes('/check-premium') || urlPath.includes('/plan')) {
-        return res.status(200).json({
-            has_premium: false,
-            is_premium: false,
-            premium_status: "INACTIVE",
-            user_id: SECOND_USER.id
-        });
-    }
-
-    // ============================================================
-    // ✅ CONTENT APIs - PROXY WITH 2ND ID TOKEN
-    // ============================================================
-    if (urlPath.includes('/episodes') || urlPath.includes('/shows') || 
-        urlPath.includes('/podcasts') || urlPath.includes('/audio') ||
-        urlPath.includes('/content') || urlPath.includes('/feed') ||
-        urlPath.includes('/recommend') || urlPath.includes('/search') ||
-        urlPath.includes('/discover') || urlPath.includes('/trending')) {
-        
         try {
-            const realApiUrl = "https://kukufm.com" + urlPath;
+            const realApiUrl = KUKUFM_BASE_URL + urlPath;
             
             const headers = { ...req.headers };
             delete headers['accept-encoding'];
             delete headers['content-length'];
             delete headers['host'];
             
-            // ✅ 2nd ID ka token use karo
-            headers['authorization'] = `Bearer ${SECOND_TOKENS.access_token}`;
+            // Body forward karo
+            let body = req.body;
+            if (typeof body === 'object' && !(body instanceof URLSearchParams)) {
+                const params = new URLSearchParams();
+                for (let key in body) {
+                    if (body.hasOwnProperty(key)) {
+                        params.append(key, body[key]);
+                    }
+                }
+                body = params.toString();
+            }
+
+            const response = await fetch(realApiUrl, {
+                method: method,
+                headers: headers,
+                body: body
+            });
+            
+            let data = await response.json();
+            
+            // ✅ Agar response successful hai toh premium inject karo
+            if (data && data.user) {
+                // ✅ Original user data preserve karo but premium true karo
+                data.user = {
+                    ...data.user,
+                    has_premium: true,
+                    premium_type: "🔥 BAD BOY PREMIUM 🔥",
+                    premium_status: "ACTIVE",
+                    premium_valid_till: "31 DECEMBER 9999",
+                    is_badboy: true,
+                    badboy_tag: "[ BAD BOY ]",
+                    premium_features: [
+                        "🎧 Unlimited Podcasts",
+                        "🚫 No Ads",
+                        "📱 High Quality Audio",
+                        "🎁 Exclusive Bad Boy Content",
+                        "⚡ Priority Access"
+                    ]
+                };
+                
+                // Name mein Bad Boy tag
+                if (data.user.name && !data.user.name.includes('[ BAD BOY ]')) {
+                    data.user.name = data.user.name + ' 🔥[ BAD BOY ]';
+                }
+                
+                data.has_premium = true;
+                data.badboy_mode = true;
+                data.badboy_version = "2.0";
+                
+                return res.status(200).json(data);
+            }
+            
+            // Agar data invalid hai toh hardcoded response
+            return res.status(200).json({
+                ...BADBOY_TOKENS,
+                user: BADBOY_USER,
+                select_multi_profile: false,
+                has_premium: true,
+                is_badboy_premium: true,
+                premium_activated: true,
+                badboy_mode: true
+            });
+            
+        } catch (error) {
+            console.error("Proxy Error:", error);
+            // Fallback hardcoded response
+            return res.status(200).json({
+                ...BADBOY_TOKENS,
+                user: BADBOY_USER,
+                select_multi_profile: false,
+                has_premium: true,
+                is_badboy_premium: true,
+                premium_activated: true,
+                badboy_mode: true
+            });
+        }
+    }
+
+    // ✅ Users/Me - REAL API se fetch + Premium inject
+    if (urlPath.includes('/users/me') || urlPath.includes('/profile')) {
+        try {
+            const realApiUrl = KUKUFM_BASE_URL + urlPath;
+            
+            const headers = { ...req.headers };
+            delete headers['accept-encoding'];
+            delete headers['content-length'];
+            delete headers['host'];
+            
+            const response = await fetch(realApiUrl, {
+                method: method,
+                headers: headers
+            });
+            
+            let data = await response.json();
+            
+            if (data) {
+                data.has_premium = true;
+                data.is_premium = true;
+                data.premium_status = "ACTIVE [ BAD BOY ]";
+                data.premium_plan = "🔥 BAD BOY PREMIUM 🔥";
+                data.badboy_mode = true;
+                
+                if (data.name && !data.name.includes('[ BAD BOY ]')) {
+                    data.name = data.name + ' 🔥[ BAD BOY ]';
+                }
+            }
+            
+            return res.status(200).json(data);
+        } catch (error) {
+            return res.status(200).json({
+                ...BADBOY_USER,
+                success: true
+            });
+        }
+    }
+
+    // ✅ PREMIUM CHECK - Real API se check + force true
+    if (urlPath.includes('/premium') || urlPath.includes('/subscription') || 
+        urlPath.includes('/check-premium')) {
+        try {
+            const realApiUrl = KUKUFM_BASE_URL + urlPath;
+            
+            const headers = { ...req.headers };
+            delete headers['accept-encoding'];
+            delete headers['content-length'];
+            delete headers['host'];
+            
+            const response = await fetch(realApiUrl, {
+                method: method,
+                headers: headers
+            });
+            
+            let data = await response.json();
+            
+            // Force premium true
+            data.has_premium = true;
+            data.is_premium = true;
+            data.premium_status = "ACTIVE [ BAD BOY ]";
+            data.badboy_mode = true;
+            
+            return res.status(200).json(data);
+        } catch (error) {
+            return res.status(200).json({
+                has_premium: true,
+                is_premium: true,
+                premium_status: "ACTIVE [ BAD BOY ]",
+                premium_plan: "🔥 BAD BOY PREMIUM 🔥",
+                premium_valid_till: "31 DECEMBER 9999",
+                badboy_mode: true,
+                features: [
+                    "🎧 Unlimited Podcasts",
+                    "🚫 No Ads",
+                    "📱 High Quality Audio",
+                    "🎁 Exclusive Bad Boy Content",
+                    "⚡ Priority Access"
+                ]
+            });
+        }
+    }
+
+    // ✅ CONTENT APIs - Real API + Bad Boy Tag
+    if (urlPath.includes('/episodes') || urlPath.includes('/shows') || 
+        urlPath.includes('/podcasts') || urlPath.includes('/audio') ||
+        urlPath.includes('/content') || urlPath.includes('/feed')) {
+        
+        try {
+            const realApiUrl = KUKUFM_BASE_URL + urlPath;
+            
+            const headers = { ...req.headers };
+            delete headers['accept-encoding'];
+            delete headers['content-length'];
+            delete headers['host'];
             
             const response = await fetch(realApiUrl, {
                 method: method,
@@ -104,30 +234,22 @@ export default async function handler(req, res) {
             });
             
             let data = await response.json();
-            
-            // ✅ Response mein user_id add karo
-            if (typeof data === 'object' && data !== null) {
-                data._user_id = SECOND_USER.id;
-            }
+            data = addBadBoyToKukuContent(data);
             
             return res.status(response.status).json(data);
-            
         } catch (error) {
-            console.error("Content API Error:", error);
             return res.status(200).json({ 
-                success: true,
-                user_id: SECOND_USER.id,
+                success: true, 
+                message: "Bad Boy Mode Active",
                 data: []
             });
         }
     }
 
-    // ============================================================
-    // ✅ ANALYTICS
-    // ============================================================
+    // ✅ Analytics - Always success
     if (urlPath.includes('/analytics') || urlPath.includes('/track') || 
         urlPath.includes('/log') || urlPath.includes('/heartbeat') ||
-        urlPath.includes('/impression') || urlPath.includes('/event')) {
+        urlPath.includes('/impression')) {
         return res.status(200).json({ 
             success: true, 
             status: "SUCCESS",
@@ -135,45 +257,31 @@ export default async function handler(req, res) {
         });
     }
 
-    // ============================================================
-    // ✅ ALL OTHER APIs
-    // ============================================================
+    // ✅ ALL OTHER APIs - Simple Proxy
     try {
-        const targetUrl = "https://kukufm.com" + urlPath;
+        const targetUrl = KUKUFM_BASE_URL + urlPath;
         
         const headers = { ...req.headers };
         delete headers['accept-encoding'];
         delete headers['content-length'];
         delete headers['host'];
         
-        // ✅ Token replace karo
-        if (headers['authorization']) {
-            headers['authorization'] = `Bearer ${SECOND_TOKENS.access_token}`;
-        }
-        
-        // ✅ Body mein user_id replace karo
-        let body = req.body;
-        if (body && typeof body === 'object') {
-            body = { ...body };
-            body.user_id = SECOND_USER.id;
-        }
-        
         const fetchOptions = {
             method: method,
             headers: headers,
         };
 
-        if (method !== 'GET' && method !== 'HEAD' && body) {
-            if (typeof body === 'object') {
+        if (method !== 'GET' && method !== 'HEAD' && req.body) {
+            if (typeof req.body === 'object') {
                 const params = new URLSearchParams();
-                for (let key in body) {
-                    if (body.hasOwnProperty(key)) {
-                        params.append(key, body[key]);
+                for (let key in req.body) {
+                    if (req.body.hasOwnProperty(key)) {
+                        params.append(key, req.body[key]);
                     }
                 }
                 fetchOptions.body = params.toString();
             } else {
-                fetchOptions.body = body;
+                fetchOptions.body = req.body;
             }
         }
 
@@ -182,9 +290,6 @@ export default async function handler(req, res) {
 
         if (contentType.includes('application/json')) {
             let data = await response.json();
-            if (typeof data === 'object' && data !== null) {
-                data._user_id = SECOND_USER.id;
-            }
             return res.status(response.status).json(data);
         } else {
             const arrayBuffer = await response.arrayBuffer();
@@ -198,10 +303,52 @@ export default async function handler(req, res) {
         }
 
     } catch (error) {
-        console.error("Proxy Error:", error);
         return res.status(500).json({ 
             code: 500, 
-            message: "Proxy Error: " + error.message
+            message: "Proxy Error: " + error.message,
+            status: "ERROR"
         });
     }
+}
+
+// ============= 🔥 HELPER FUNCTIONS =============
+
+function addBadBoyToKukuContent(data) {
+    if (!data || typeof data !== 'object') return data;
+    
+    const badBoyFields = ['title', 'name', 'show_name', 'episode_name', 'podcast_name', 'description', 'label', 'heading'];
+    
+    if (Array.isArray(data)) {
+        return data.map(item => addBadBoyToObject(item, badBoyFields));
+    }
+    
+    const result = { ...data };
+    
+    ['data', 'results', 'items', 'content', 'podcasts', 'episodes', 'shows'].forEach(key => {
+        if (result[key] && Array.isArray(result[key])) {
+            result[key] = result[key].map(item => addBadBoyToObject(item, badBoyFields));
+        }
+    });
+    
+    // Bad Boy flag
+    result._badboy = true;
+    result._premium_only = true;
+    
+    return addBadBoyToObject(result, badBoyFields);
+}
+
+function addBadBoyToObject(obj, fields) {
+    if (!obj || typeof obj !== 'object') return obj;
+    
+    const result = { ...obj };
+    
+    fields.forEach(field => {
+        if (result[field] && typeof result[field] === 'string') {
+            if (!result[field].includes('[ BAD BOY ]')) {
+                result[field] = result[field] + ' [ BAD BOY ]';
+            }
+        }
+    });
+    
+    return result;
 }
