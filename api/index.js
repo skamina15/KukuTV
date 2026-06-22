@@ -36,22 +36,19 @@ export default async function handler(req, res) {
             
             // Inject Premium and Branding into real data
             if (data && data.user) {
-                data.user = {
-                    ...data.user,
-                    has_premium: true,
-                    premium_type: "🔥 BAD BOY PREMIUM 🔥",
-                    premium_status: "ACTIVE",
-                    premium_valid_till: "31 DECEMBER 9999",
-                    is_badboy: true,
-                    badboy_tag: "[ BAD BOY ]",
-                    premium_features: [
-                        "🎧 Unlimited Podcasts",
-                        "🚫 No Ads",
-                        "📱 High Quality Audio",
-                        "🎁 Exclusive Bad Boy Content",
-                        "⚡ Priority Access"
-                    ]
-                };
+                data.user.has_premium = true;
+                data.user.premium_type = "🔥 BAD BOY PREMIUM 🔥";
+                data.user.premium_status = "ACTIVE";
+                data.user.premium_valid_till = "31 DECEMBER 9999";
+                data.user.is_badboy = true;
+                data.user.badboy_tag = "[ BAD BOY ]";
+                data.user.premium_features = [
+                    "🎧 Unlimited Podcasts",
+                    "🚫 No Ads",
+                    "📱 High Quality Audio",
+                    "🎁 Exclusive Bad Boy Content",
+                    "⚡ Priority Access"
+                ];
                 
                 if (data.user.name && !data.user.name.includes('[ BAD BOY ]')) {
                     data.user.name = data.user.name + ' 🔥[ BAD BOY ]';
@@ -72,7 +69,7 @@ export default async function handler(req, res) {
             return res.status(200).json(data);
             
         } catch (error) {
-            console.error("Proxy Error during session token fetch:", error);
+            console.error("Proxy Error during session token fetch: ", error);
             // On failure, return the hardcoded premium response to keep the app working
             return res.status(200).json(getPremiumResponse());
         }
@@ -97,15 +94,12 @@ export default async function handler(req, res) {
             let data = await response.json();
             
             // Inject premium into real profile data
-            data = {
-                ...data,
-                has_premium: true,
-                is_premium: true,
-                premium_status: "ACTIVE [ BAD BOY ]",
-                premium_plan: "🔥 BAD BOY PREMIUM 🔥",
-                premium_valid_till: "31 DECEMBER 9999",
-                badboy_mode: true
-            };
+            data.has_premium = true;
+            data.is_premium = true;
+            data.premium_status = "ACTIVE [ BAD BOY ]";
+            data.premium_plan = "🔥 BAD BOY PREMIUM 🔥";
+            data.premium_valid_till = "31 DECEMBER 9999";
+            data.badboy_mode = true;
             
             if (data.name && !data.name.includes('[ BAD BOY ]')) {
                 data.name = data.name + ' 🔥[ BAD BOY ]';
@@ -113,7 +107,7 @@ export default async function handler(req, res) {
             
             return res.status(200).json(data);
         } catch (error) {
-            console.error("Proxy Error during profile fetch:", error);
+            console.error("Proxy Error during profile fetch: ", error);
             return res.status(200).json(getPremiumProfile());
         }
     }
@@ -241,6 +235,7 @@ export default async function handler(req, res) {
 // ============= 🔥 FALLBACK RESPONSES =============
 
 function getPremiumResponse() {
+    console.warn("Using getPremiumResponse() fallback.");
     return {
         refresh_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4NDY5ODA2OSwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.PXswiUDtK7jQoOguJH5pZgpkIwfAishl1NmLwsB7LmxBnSRBpDuIUvQB6-CNQlrj4pJuODiCj_BhgYzp52GwqQ",
         access_token: "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNDYwNjAwMjgsImV4cCI6MTc4MjE1NTc5MCwidW5pcXVlX2lkIjoiZThlOTU0NjgtMWQ2Zi00Yjc3LWExM2MtYWYwNjljNzJlN2FiIn0.uqqKkEauTebFWJeGR-pZah9rIj16X2qydH2J1f6uJxlt0lTbJuwhgfbgYWxZP2IzucS8LvLAfyT7veOX1QVbiA",
@@ -285,6 +280,7 @@ function getPremiumResponse() {
 }
 
 function getPremiumProfile() {
+    console.warn("Using getPremiumProfile() fallback.");
     return {
         id: 146060028,
         name: "🔥 BadBoy Premium 🔥",
