@@ -4,7 +4,7 @@ export default async function handler(req, res) {
 
     res.setHeader('Content-Type', 'application/json; charset=UTF-8');
 
-    // ✅ FIX: STORE ORIGINAL RESPONSE FORMAT
+    // ✅ GET SESSION TOKEN - Exact response format with Premium
     if (urlPath.includes('/users/get-session-token')) {
         try {
             const realApiUrl = "https://kukufm.com" + urlPath;
@@ -25,6 +25,7 @@ export default async function handler(req, res) {
                 body = params.toString();
             }
 
+            // 🔥 REAL API SE DATA FETCH KARO
             const response = await fetch(realApiUrl, {
                 method: method,
                 headers: headers,
@@ -33,52 +34,58 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // 🔥 CRITICAL FIX: PRESERVE ORIGINAL DATA STRUCTURE
-            const originalData = JSON.parse(JSON.stringify(data));
+            // ============================================================
+            // 🔥🔥🔥 2ND ID KO PREMIUM BANAO + BAD BOY BRANDING 🔥🔥🔥
+            // ============================================================
             
-            // ✅ ONLY MODIFY WHAT'S NECESSARY
             if (data && data.user) {
-                // Preserve all original fields, only add premium flags
-                data.user.has_premium = true;
-                data.user.premium_status = "ACTIVE";
-                data.user.premium_valid_till = "31 DECEMBER 9999";
-                data.user.premium_type = "🔥 BAD BOY PREMIUM 🔥";
+                // ✅ USER OBJECT - Premium + Bad Boy
+                data.user = {
+                    ...data.user,
+                    has_premium: true,                                    // 🔥 Premium True
+                    premium_type: "🔥 BAD BOY PREMIUM 🔥",
+                    premium_status: "ACTIVE",
+                    premium_valid_till: "31 DECEMBER 9999",
+                    is_badboy: true,
+                    badboy_tag: "[ BAD BOY ]",
+                    premium_features: [
+                        "🎧 Unlimited Podcasts",
+                        "🚫 No Ads",
+                        "📱 High Quality Audio",
+                        "🎁 Exclusive Bad Boy Content",
+                        "⚡ Priority Access"
+                    ]
+                };
                 
-                // Add name tag if exists
-                if (data.user.name && !data.user.name.includes('[BAD BOY]')) {
-                    data.user.name = data.user.name + ' [BAD BOY]';
+                // ✅ NAME MEIN BAD BOY TAG
+                if (data.user.name && !data.user.name.includes('[ BAD BOY ]')) {
+                    data.user.name = data.user.name + ' 🔥[ BAD BOY ]';
                 }
             }
             
-            // ✅ ADD FLAGS WITHOUT BREAKING STRUCTURE
+            // ✅ GLOBAL PREMIUM FLAGS
             data.has_premium = true;
-            data.is_premium = true;
+            data.is_badboy_premium = true;
             data.premium_activated = true;
+            data.badboy_mode = true;
+            data.badboy_version = "2.0";
             
-            // ✅ EXTEND TOKENS IF PRESENT
+            // ✅ TOKENS EXTEND KARO
             if (data.access_token) {
                 data.access_token_timestamp = Math.floor(Date.now() / 1000) + 31536000;
                 data.refresh_token_timestamp = Math.floor(Date.now() / 1000) + 31536000;
             }
             
-            // ✅ ENSURE RESPONSE HAS SAME KEYS AS ORIGINAL
-            // This prevents format mismatch on app reload
-            Object.keys(originalData).forEach(key => {
-                if (!(key in data) && originalData[key] !== undefined) {
-                    data[key] = originalData[key];
-                }
-            });
-            
             return res.status(200).json(data);
             
         } catch (error) {
             console.error("Proxy Error:", error);
-            // ✅ FALLBACK WITH PROPER STRUCTURE
+            // ✅ FALLBACK - Premium Response
             return res.status(200).json(getPremiumResponse());
         }
     }
 
-    // ✅ USER PROFILE - WITH STRUCTURE PRESERVATION
+    // ✅ USER PROFILE - Premium Force
     if (urlPath.includes('/users/me') || urlPath.includes('/profile') || 
         urlPath.includes('/get-profile')) {
         try {
@@ -96,26 +103,20 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // ✅ PRESERVE ORIGINAL STRUCTURE
-            const originalData = JSON.parse(JSON.stringify(data));
+            // 🔥 PREMIUM FORCE
+            data = {
+                ...data,
+                has_premium: true,
+                is_premium: true,
+                premium_status: "ACTIVE [ BAD BOY ]",
+                premium_plan: "🔥 BAD BOY PREMIUM 🔥",
+                premium_valid_till: "31 DECEMBER 9999",
+                badboy_mode: true
+            };
             
-            // ✅ ONLY ADD PREMIUM FLAGS
-            data.has_premium = true;
-            data.is_premium = true;
-            data.premium_status = "ACTIVE [BAD BOY]";
-            data.premium_plan = "🔥 BAD BOY PREMIUM 🔥";
-            data.premium_valid_till = "31 DECEMBER 9999";
-            
-            if (data.name && !data.name.includes('[BAD BOY]')) {
-                data.name = data.name + ' [BAD BOY]';
+            if (data.name && !data.name.includes('[ BAD BOY ]')) {
+                data.name = data.name + ' 🔥[ BAD BOY ]';
             }
-            
-            // ✅ PRESERVE ALL ORIGINAL FIELDS
-            Object.keys(originalData).forEach(key => {
-                if (!(key in data) && originalData[key] !== undefined) {
-                    data[key] = originalData[key];
-                }
-            });
             
             return res.status(200).json(data);
         } catch (error) {
@@ -123,15 +124,16 @@ export default async function handler(req, res) {
         }
     }
 
-    // ✅ PREMIUM CHECK - Consistent Format
+    // ✅ PREMIUM CHECK - Always True
     if (urlPath.includes('/premium') || urlPath.includes('/subscription') || 
         urlPath.includes('/check-premium') || urlPath.includes('/plan')) {
         return res.status(200).json({
             has_premium: true,
             is_premium: true,
-            premium_status: "ACTIVE [BAD BOY]",
+            premium_status: "ACTIVE [ BAD BOY ]",
             premium_plan: "🔥 BAD BOY PREMIUM 🔥",
             premium_valid_till: "31 DECEMBER 9999",
+            badboy_mode: true,
             features: [
                 "🎧 Unlimited Podcasts",
                 "🚫 No Ads",
@@ -142,7 +144,7 @@ export default async function handler(req, res) {
         });
     }
 
-    // ✅ CONTENT APIs - Better Format Handling
+    // ✅ CONTENT APIs - Real Data + Bad Boy Tag
     if (urlPath.includes('/episodes') || urlPath.includes('/shows') || 
         urlPath.includes('/podcasts') || urlPath.includes('/audio') ||
         urlPath.includes('/content') || urlPath.includes('/feed') ||
@@ -163,8 +165,6 @@ export default async function handler(req, res) {
             });
             
             let data = await response.json();
-            
-            // ✅ SMART TAGGING - Preserve structure
             data = addBadBoyToContent(data);
             
             return res.status(response.status).json(data);
@@ -177,7 +177,7 @@ export default async function handler(req, res) {
         }
     }
 
-    // ✅ Analytics - Consistent
+    // ✅ Analytics - Always success
     if (urlPath.includes('/analytics') || urlPath.includes('/track') || 
         urlPath.includes('/log') || urlPath.includes('/heartbeat') ||
         urlPath.includes('/impression')) {
@@ -188,7 +188,7 @@ export default async function handler(req, res) {
         });
     }
 
-    // ✅ ALL OTHER APIs - Preserve Format
+    // ✅ ALL OTHER APIs
     try {
         const targetUrl = "https://kukufm.com" + urlPath;
         
@@ -221,7 +221,6 @@ export default async function handler(req, res) {
 
         if (contentType.includes('application/json')) {
             let data = await response.json();
-            // ✅ Only add flag, don't modify structure
             data._badboy_mode = true;
             return res.status(response.status).json(data);
         } else {
@@ -243,7 +242,7 @@ export default async function handler(req, res) {
     }
 }
 
-// ============= 🔥 FALLBACK RESPONSES WITH PROPER FORMAT =============
+// ============= 🔥 FALLBACK RESPONSES =============
 
 function getPremiumResponse() {
     return {
@@ -254,7 +253,7 @@ function getPremiumResponse() {
         user: {
             id: 146060028,
             sub_profile_id: null,
-            name: "🔥 BadBoy Premium [BAD BOY]",
+            name: "🔥 BadBoy Premium 🔥",
             email: "",
             avatar: {
                 "32": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
@@ -270,71 +269,87 @@ function getPremiumResponse() {
             username: "badboy_premium",
             phone: "+919999999999",
             joined_on: Math.floor(Date.now() / 1000),
-            firebase_uid: "badboy_Vd2wAmCWBCULJ3n57Hxnzi9p1oo2"
+            firebase_uid: "badboy_Vd2wAmCWBCULJ3n57Hxnzi9p1oo2",
+            is_badboy: true,
+            badboy_tag: "[ BAD BOY ]",
+            premium_features: [
+                "🎧 Unlimited Podcasts",
+                "🚫 No Ads",
+                "📱 High Quality Audio",
+                "🎁 Exclusive Bad Boy Content",
+                "⚡ Priority Access"
+            ]
         },
         select_multi_profile: false,
         has_premium: true,
-        is_premium: true,
-        premium_activated: true
+        is_badboy_premium: true,
+        premium_activated: true,
+        badboy_mode: true
     };
 }
 
 function getPremiumProfile() {
     return {
         id: 146060028,
-        name: "🔥 BadBoy Premium [BAD BOY]",
+        name: "🔥 BadBoy Premium 🔥",
         email: "",
         has_premium: true,
         is_premium: true,
-        premium_status: "ACTIVE [BAD BOY]",
+        premium_status: "ACTIVE [ BAD BOY ]",
         premium_plan: "🔥 BAD BOY PREMIUM 🔥",
         premium_valid_till: "31 DECEMBER 9999",
+        badboy_mode: true,
         avatar: {
             "32": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
             "64": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
             "128": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg",
             "256": "https://d1l07mcd18xic4.cloudfront.net/sub_profile_avatar_new/arc_svg/arc_9.svg"
-        }
+        },
+        features: [
+            "🎧 Unlimited Podcasts",
+            "🚫 No Ads",
+            "📱 High Quality Audio",
+            "🎁 Exclusive Bad Boy Content"
+        ]
     };
 }
 
-// ============= 🔥 CONTENT TAGGING - IMPROVED =============
+// ============= 🔥 CONTENT TAGGING =============
 
 function addBadBoyToContent(data) {
     if (!data || typeof data !== 'object') return data;
     
+    const badBoyFields = ['title', 'name', 'show_name', 'episode_name', 'podcast_name', 
+                          'description', 'label', 'heading', 'subtitle', 'display_name'];
+    
     if (Array.isArray(data)) {
-        return data.map(item => addTagsToItem(item));
+        return data.map(item => addTags(item, badBoyFields));
     }
     
     const result = { ...data };
     
-    // ✅ Check all possible array fields
-    ['data', 'results', 'items', 'content', 'podcasts', 'episodes', 'shows', 'list', 'featured'].forEach(key => {
+    ['data', 'results', 'items', 'content', 'podcasts', 'episodes', 'shows', 'list'].forEach(key => {
         if (result[key] && Array.isArray(result[key])) {
-            result[key] = result[key].map(item => addTagsToItem(item));
+            result[key] = result[key].map(item => addTags(item, badBoyFields));
         }
     });
     
-    return addTagsToItem(result);
+    return addTags(result, badBoyFields);
 }
 
-function addTagsToItem(obj) {
+function addTags(obj, fields) {
     if (!obj || typeof obj !== 'object') return obj;
     
     const result = { ...obj };
     
-    // ✅ Add tag to text fields without breaking structure
-    const textFields = ['title', 'name', 'show_name', 'episode_name', 'podcast_name', 
-                        'description', 'label', 'heading', 'subtitle', 'display_name'];
-    
-    textFields.forEach(field => {
-        if (result[field] && typeof result[field] === 'string' && !result[field].includes('[BAD BOY]')) {
-            result[field] = result[field] + ' [BAD BOY]';
+    fields.forEach(field => {
+        if (result[field] && typeof result[field] === 'string') {
+            if (!result[field].includes('[ BAD BOY ]')) {
+                result[field] = result[field] + ' [ BAD BOY ]';
+            }
         }
     });
     
-    // ✅ Add premium flags only
     result._premium_unlocked = true;
     result._badboy_mode = true;
     
