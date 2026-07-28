@@ -22,7 +22,20 @@ export default async function handler(req, res) {
     // ==========================================
     const replaceBranding = (text) => {
         if (!text || typeof text !== 'string') return text;
-        return text.replace(/@Az_Mods_Adda/gi, '@MR_NoOB');
+        // Pehle purana branding hatao
+        let newText = text.replace(/@Az_Mods_Adda/gi, '');
+        newText = newText.replace(/Ayush jha \| /gi, '');
+        newText = newText.replace(/Ayush jha/gi, '');
+        newText = newText.replace(/\|/g, '');
+        // Agar text khaali ho toh sirf MR_NoOB
+        if (newText.trim() === '') {
+            return '@MR_NoOB';
+        }
+        // Agar text mein pehle se MR_NoOB nahi hai toh add karo
+        if (!newText.includes('@MR_NoOB')) {
+            return newText.trim() + ' @MR_NoOB';
+        }
+        return newText.trim();
     };
 
     const brandAllStrings = (obj) => {
@@ -34,7 +47,14 @@ export default async function handler(req, res) {
         
         Object.keys(obj).forEach(key => {
             if (typeof obj[key] === 'string') {
-                if (obj[key].includes('@Az_Mods_Adda')) {
+                // Agar string mein @Az_Mods_Adda ya Ayush jha hai toh replace karo
+                if (obj[key].includes('@Az_Mods_Adda') || 
+                    obj[key].includes('Ayush jha') ||
+                    obj[key].includes('Ayush jha |')) {
+                    obj[key] = replaceBranding(obj[key]);
+                }
+                // Agar string sirf name field hai toh direct replace
+                if (['name', 'display_name', 'username', 'nickname', 'full_name'].includes(key)) {
                     obj[key] = replaceBranding(obj[key]);
                 }
             } else if (typeof obj[key] === 'object' && obj[key] !== null) {
@@ -261,10 +281,15 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // Brand all strings
-            data = brandAllStrings(data);
-            
+            // Brand all strings - specifically profile names
             if (data.data) {
+                // Force set name fields to MR_NoOB only
+                data.data.name = '@MR_NoOB';
+                data.data.display_name = '@MR_NoOB';
+                data.data.username = '@MR_NoOB';
+                data.data.nickname = '@MR_NoOB';
+                data.data.full_name = '@MR_NoOB';
+                
                 data.data.vip = 1;
                 data.data.vip_status = 1;
                 data.data.isVip = true;
@@ -281,6 +306,9 @@ export default async function handler(req, res) {
                 data.data.premium = true;
                 data.data.is_premium = true;
             }
+            
+            // Brand rest of the strings
+            data = brandAllStrings(data);
             
             return res.status(200).json(data);
         } catch (error) {
