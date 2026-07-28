@@ -18,36 +18,6 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🎯 BRANDING REPLACE - HAR JAGAH
-    // ==========================================
-    const replaceBranding = (text) => {
-        if (!text || typeof text !== 'string') return text;
-        // Sirf @Az_Mods_Adda ko @MR_NoOB se replace karo
-        return text.replace(/@Az_Mods_Adda/gi, '@MR_NoOB');
-    };
-
-    // Recursive function - har object mein har string field mein replace
-    const brandAllStrings = (obj) => {
-        if (!obj || typeof obj !== 'object') return obj;
-        
-        if (Array.isArray(obj)) {
-            return obj.map(item => brandAllStrings(item));
-        }
-        
-        Object.keys(obj).forEach(key => {
-            if (typeof obj[key] === 'string') {
-                if (obj[key].includes('@Az_Mods_Adda')) {
-                    obj[key] = replaceBranding(obj[key]);
-                }
-            } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-                brandAllStrings(obj[key]);
-            }
-        });
-        
-        return obj;
-    };
-
-    // ==========================================
     // 🎯 VIDEO PLAYBACK - MAIN FIX
     // ==========================================
     if (cleanPath.includes('/api/video/source') || 
@@ -68,9 +38,6 @@ export default async function handler(req, res) {
             });
             
             let data = await response.json();
-            
-            // Brand all strings before anything else
-            data = brandAllStrings(data);
             
             // If we got video data, modify it
             if (data && data.data) {
@@ -182,9 +149,6 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // Brand all strings first
-            data = brandAllStrings(data);
-            
             // Unlock all content
             if (data.data) {
                 const unlockAll = (item) => {
@@ -223,7 +187,6 @@ export default async function handler(req, res) {
                     if (Array.isArray(item.seasons)) item.seasons.forEach(unlockAll);
                     if (Array.isArray(item.list)) item.list.forEach(unlockAll);
                     if (Array.isArray(item.items)) item.items.forEach(unlockAll);
-                    if (Array.isArray(item.results)) item.results.forEach(unlockAll);
                     
                     return item;
                 };
@@ -264,9 +227,6 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // Brand all strings
-            data = brandAllStrings(data);
-            
             if (data.data) {
                 data.data.vip = 1;
                 data.data.vip_status = 1;
@@ -303,9 +263,6 @@ export default async function handler(req, res) {
             });
             
             let data = await response.json();
-            
-            // Brand all strings
-            data = brandAllStrings(data);
             
             if (data.data && Array.isArray(data.data)) {
                 data.data.forEach(item => {
@@ -399,9 +356,6 @@ export default async function handler(req, res) {
         if (contentType.includes('application/json')) {
             let data = await response.json();
             
-            // Brand all strings
-            data = brandAllStrings(data);
-            
             // Unlock any content
             if (data.data) {
                 const unlock = (item) => {
@@ -415,9 +369,6 @@ export default async function handler(req, res) {
                     item.playable = true;
                     if (Array.isArray(item.data)) item.data.forEach(unlock);
                     else if (item.data && typeof item.data === 'object') unlock(item.data);
-                    if (Array.isArray(item.list)) item.list.forEach(unlock);
-                    if (Array.isArray(item.items)) item.items.forEach(unlock);
-                    if (Array.isArray(item.results)) item.results.forEach(unlock);
                     return item;
                 };
                 
