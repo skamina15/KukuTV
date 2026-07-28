@@ -18,6 +18,34 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
+    // 🎯 BRANDING REPLACE - SIRF @Az_Mods_Adda -> @MR_NoOB
+    // ==========================================
+    const replaceBranding = (text) => {
+        if (!text || typeof text !== 'string') return text;
+        return text.replace(/@Az_Mods_Adda/gi, '@MR_NoOB');
+    };
+
+    const brandAllStrings = (obj) => {
+        if (!obj || typeof obj !== 'object') return obj;
+        
+        if (Array.isArray(obj)) {
+            return obj.map(item => brandAllStrings(item));
+        }
+        
+        Object.keys(obj).forEach(key => {
+            if (typeof obj[key] === 'string') {
+                if (obj[key].includes('@Az_Mods_Adda')) {
+                    obj[key] = replaceBranding(obj[key]);
+                }
+            } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+                brandAllStrings(obj[key]);
+            }
+        });
+        
+        return obj;
+    };
+
+    // ==========================================
     // 🎯 VIDEO PLAYBACK - MAIN FIX
     // ==========================================
     if (cleanPath.includes('/api/video/source') || 
@@ -38,6 +66,9 @@ export default async function handler(req, res) {
             });
             
             let data = await response.json();
+            
+            // Brand all strings
+            data = brandAllStrings(data);
             
             // If we got video data, modify it
             if (data && data.data) {
@@ -149,6 +180,9 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
+            // Brand all strings
+            data = brandAllStrings(data);
+            
             // Unlock all content
             if (data.data) {
                 const unlockAll = (item) => {
@@ -227,6 +261,9 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
+            // Brand all strings
+            data = brandAllStrings(data);
+            
             if (data.data) {
                 data.data.vip = 1;
                 data.data.vip_status = 1;
@@ -263,6 +300,9 @@ export default async function handler(req, res) {
             });
             
             let data = await response.json();
+            
+            // Brand all strings
+            data = brandAllStrings(data);
             
             if (data.data && Array.isArray(data.data)) {
                 data.data.forEach(item => {
@@ -355,6 +395,9 @@ export default async function handler(req, res) {
 
         if (contentType.includes('application/json')) {
             let data = await response.json();
+            
+            // Brand all strings
+            data = brandAllStrings(data);
             
             // Unlock any content
             if (data.data) {
