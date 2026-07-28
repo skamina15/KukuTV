@@ -18,19 +18,97 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
+    // 🎯 BRANDING REPLACE - HAR JAGAH
+    // ==========================================
+    const replaceBranding = (text) => {
+        if (!text || typeof text !== 'string') return text;
+        return text.replace(/@Az_Mods_Adda/gi, '@MR_NoOB');
+    };
+
+    const brandAllStrings = (obj) => {
+        if (!obj || typeof obj !== 'object') return obj;
+        
+        if (Array.isArray(obj)) {
+            return obj.map(item => brandAllStrings(item));
+        }
+        
+        Object.keys(obj).forEach(key => {
+            if (typeof obj[key] === 'string') {
+                if (obj[key].includes('@Az_Mods_Adda')) {
+                    obj[key] = replaceBranding(obj[key]);
+                }
+            } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+                brandAllStrings(obj[key]);
+            }
+        });
+        
+        return obj;
+    };
+
+    // ==========================================
+    // 🎯 FORCE UNLOCK FUNCTION
+    // ==========================================
+    const forceUnlock = (item) => {
+        if (!item || typeof item !== 'object') return item;
+        
+        // Sabhi VIP flags true karo
+        item.vip = 1;
+        item.isVip = true;
+        item.is_vip = true;
+        item.vip_status = 1;
+        item.premium = true;
+        item.is_premium = true;
+        item.free = true;
+        item.is_free = true;
+        item.locked = false;
+        item.is_locked = false;
+        item.can_play = true;
+        item.playable = true;
+        item.available = true;
+        item.status = "active";
+        item.price = "0";
+        item.drm_enabled = false;
+        item.need_auth = false;
+        item.auth_required = false;
+        item.unlocked = true;
+        item.is_unlocked = true;
+        item.has_access = true;
+        item.access = "granted";
+        item.requires_vip = false;
+        item.requires_payment = false;
+        item.paid = true;
+        item.is_paid = true;
+        
+        // Video URL fix
+        ['url', 'source', 'video', 'play_url', 'stream_url', 'hls_url', 'm3u8', 'direct_url'].forEach(field => {
+            if (item[field] && typeof item[field] === 'string') {
+                item[field] = item[field].split('?')[0].replace('http://', 'https://');
+            }
+        });
+        
+        // Recursive
+        if (Array.isArray(item.data)) item.data.forEach(forceUnlock);
+        else if (item.data && typeof item.data === 'object') forceUnlock(item.data);
+        if (Array.isArray(item.episodes)) item.episodes.forEach(forceUnlock);
+        if (Array.isArray(item.seasons)) item.seasons.forEach(forceUnlock);
+        if (Array.isArray(item.list)) item.list.forEach(forceUnlock);
+        if (Array.isArray(item.items)) item.items.forEach(forceUnlock);
+        if (Array.isArray(item.results)) item.results.forEach(forceUnlock);
+        
+        return item;
+    };
+
+    // ==========================================
     // 🎯 VIDEO PLAYBACK - MAIN FIX
     // ==========================================
     if (cleanPath.includes('/api/video/source') || 
         cleanPath.includes('/api/play/source') ||
         cleanPath.includes('/api/get/play') ||
         cleanPath.includes('/api/source/') ||
-        cleanPath.includes('/api/video/play')) {
+        cleanPath.includes('/api/video/play') ||
+        cleanPath.includes('/api/play/')) {
         
         try {
-            // Get video ID from URL
-            const videoId = urlPath.split('/').pop().split('?')[0];
-            
-            // First try to get real video source
             const headers = buildHeaders(req);
             const response = await fetch(targetBaseUrl + urlPath, {
                 method: method,
@@ -39,29 +117,35 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // If we got video data, modify it
+            // Brand all strings
+            data = brandAllStrings(data);
+            
+            // Force unlock - pehle data level par
+            if (data) {
+                forceUnlock(data);
+            }
+            
+            // Agar data.data hai toh usko bhi unlock karo
             if (data && data.data) {
-                // Force unlock
-                data.data.vip = 1;
-                data.data.isVip = true;
-                data.data.premium = true;
-                data.data.free = true;
-                data.data.locked = false;
-                data.data.can_play = true;
-                data.data.playable = true;
-                data.data.available = true;
-                data.data.drm_enabled = false;
-                data.data.need_auth = false;
-                data.data.auth_required = false;
+                forceUnlock(data.data);
+                
+                // Extra VIP flags data level par
+                data.vip = 1;
+                data.isVip = true;
+                data.premium = true;
+                data.free = true;
+                data.locked = false;
+                data.can_play = true;
+                data.playable = true;
+                data.success = true;
+                data.code = 200;
                 
                 // Fix video URL
                 let videoUrl = data.data.url || data.data.source || data.data.video || data.data.play_url;
                 if (videoUrl) {
-                    // Remove Tencent auth params
                     videoUrl = videoUrl.split('?')[0];
                     videoUrl = videoUrl.replace('http://', 'https://');
                     
-                    // Set all URL fields
                     data.data.url = videoUrl;
                     data.data.source = videoUrl;
                     data.data.video = videoUrl;
@@ -69,48 +153,33 @@ export default async function handler(req, res) {
                     data.data.direct_url = videoUrl;
                     data.data.stream_url = videoUrl;
                 } else {
-                    // If no URL found, use fallback
-                    data.data.url = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-                    data.data.source = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-                    data.data.video = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-                    data.data.play_url = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-                    data.data.direct_url = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+                    // Fallback video
+                    const fallbackUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+                    data.data.url = fallbackUrl;
+                    data.data.source = fallbackUrl;
+                    data.data.video = fallbackUrl;
+                    data.data.play_url = fallbackUrl;
+                    data.data.direct_url = fallbackUrl;
+                    data.data.stream_url = fallbackUrl;
                 }
-                
-                data.success = true;
-                data.code = 200;
-                
-                return res.status(200).json(data);
             }
             
-            // If no data, return fallback
-            return res.status(200).json({
-                code: 200,
-                message: "Success",
-                data: {
-                    url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-                    source: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-                    video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-                    play_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-                    vip: 1,
-                    isVip: true,
-                    premium: true,
-                    free: true,
-                    locked: false,
-                    can_play: true,
-                    playable: true,
-                    drm_enabled: false,
-                    need_auth: false
-                },
-                success: true
-            });
+            return res.status(200).json(data);
             
         } catch (error) {
             console.error('Video Source Error:', error);
-            // Return fallback video
+            // Fallback with unlock
             return res.status(200).json({
                 code: 200,
                 message: "Success",
+                vip: 1,
+                isVip: true,
+                premium: true,
+                free: true,
+                locked: false,
+                can_play: true,
+                playable: true,
+                success: true,
                 data: {
                     url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
                     source: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
@@ -124,9 +193,10 @@ export default async function handler(req, res) {
                     can_play: true,
                     playable: true,
                     drm_enabled: false,
-                    need_auth: false
-                },
-                success: true
+                    need_auth: false,
+                    requires_vip: false,
+                    requires_payment: false
+                }
             });
         }
     }
@@ -149,53 +219,16 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // Unlock all content
+            // Brand all strings
+            data = brandAllStrings(data);
+            
+            // Force unlock
+            if (data) {
+                forceUnlock(data);
+            }
+            
             if (data.data) {
-                const unlockAll = (item) => {
-                    if (!item || typeof item !== 'object') return item;
-                    
-                    item.vip = 1;
-                    item.isVip = true;
-                    item.is_vip = true;
-                    item.vip_status = 1;
-                    item.premium = true;
-                    item.is_premium = true;
-                    item.free = true;
-                    item.is_free = true;
-                    item.locked = false;
-                    item.is_locked = false;
-                    item.can_play = true;
-                    item.playable = true;
-                    item.available = true;
-                    item.status = "active";
-                    item.price = "0";
-                    item.drm_enabled = false;
-                    item.need_auth = false;
-                    item.auth_required = false;
-                    
-                    // Fix any video URLs
-                    ['url', 'source', 'video', 'play_url', 'stream_url', 'hls_url', 'm3u8'].forEach(field => {
-                        if (item[field] && typeof item[field] === 'string') {
-                            item[field] = item[field].split('?')[0].replace('http://', 'https://');
-                        }
-                    });
-                    
-                    // Recursive
-                    if (Array.isArray(item.data)) item.data.forEach(unlockAll);
-                    else if (item.data && typeof item.data === 'object') unlockAll(item.data);
-                    if (Array.isArray(item.episodes)) item.episodes.forEach(unlockAll);
-                    if (Array.isArray(item.seasons)) item.seasons.forEach(unlockAll);
-                    if (Array.isArray(item.list)) item.list.forEach(unlockAll);
-                    if (Array.isArray(item.items)) item.items.forEach(unlockAll);
-                    
-                    return item;
-                };
-                
-                if (Array.isArray(data.data)) {
-                    data.data.forEach(unlockAll);
-                } else {
-                    unlockAll(data.data);
-                }
+                forceUnlock(data.data);
             }
             
             data.code = 200;
@@ -208,8 +241,15 @@ export default async function handler(req, res) {
             return res.status(200).json({
                 code: 200,
                 message: "Success",
-                data: [],
-                success: true
+                vip: 1,
+                isVip: true,
+                premium: true,
+                free: true,
+                locked: false,
+                can_play: true,
+                playable: true,
+                success: true,
+                data: []
             });
         }
     }
@@ -226,6 +266,9 @@ export default async function handler(req, res) {
             });
             
             let data = await response.json();
+            
+            // Brand all strings
+            data = brandAllStrings(data);
             
             if (data.data) {
                 data.data.vip = 1;
@@ -264,15 +307,12 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
+            // Brand all strings
+            data = brandAllStrings(data);
+            
             if (data.data && Array.isArray(data.data)) {
                 data.data.forEach(item => {
-                    item.vip = 1;
-                    item.isVip = true;
-                    item.premium = true;
-                    item.free = true;
-                    item.locked = false;
-                    item.can_play = true;
-                    item.playable = true;
+                    forceUnlock(item);
                 });
             }
             
@@ -311,6 +351,14 @@ export default async function handler(req, res) {
         return res.status(200).json({
             code: 200,
             message: "Success",
+            vip: 1,
+            isVip: true,
+            premium: true,
+            free: true,
+            locked: false,
+            can_play: true,
+            playable: true,
+            success: true,
             data: {
                 orderId: "FAKE_" + Date.now(),
                 status: "PAID",
@@ -319,8 +367,7 @@ export default async function handler(req, res) {
                 paid: true,
                 unlocked: true,
                 premium: true
-            },
-            success: true
+            }
         });
     }
 
@@ -356,27 +403,16 @@ export default async function handler(req, res) {
         if (contentType.includes('application/json')) {
             let data = await response.json();
             
-            // Unlock any content
+            // Brand all strings
+            data = brandAllStrings(data);
+            
+            // Force unlock
+            if (data) {
+                forceUnlock(data);
+            }
+            
             if (data.data) {
-                const unlock = (item) => {
-                    if (!item || typeof item !== 'object') return item;
-                    item.vip = 1;
-                    item.isVip = true;
-                    item.premium = true;
-                    item.free = true;
-                    item.locked = false;
-                    item.can_play = true;
-                    item.playable = true;
-                    if (Array.isArray(item.data)) item.data.forEach(unlock);
-                    else if (item.data && typeof item.data === 'object') unlock(item.data);
-                    return item;
-                };
-                
-                if (Array.isArray(data.data)) {
-                    data.data.forEach(unlock);
-                } else {
-                    unlock(data.data);
-                }
+                forceUnlock(data.data);
             }
             
             return res.status(response.status).json(data);
@@ -433,6 +469,9 @@ function buildHeaders(req) {
     headers['x-vip-token'] = 'LIFETIME_PREMIUM_2026';
     headers['x-playback-mode'] = 'direct';
     headers['x-drm-bypass'] = 'true';
+    headers['x-vip-status'] = '1';
+    headers['x-user-type'] = 'premium';
+    headers['x-premium'] = 'true';
     
     return headers;
 }
