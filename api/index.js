@@ -1,5 +1,5 @@
 // ==========================================
-// 🎯 DrXmas / Mar-Show PROXY - FINAL WORKING
+// 🎯 DrXmas / Mar-Show PROXY - @MR_NoOB BRANDING
 // ==========================================
 
 export default async function handler(req, res) {
@@ -18,6 +18,40 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
+    // 🏷️ BRANDING - @MR_NoOB
+    // ==========================================
+    const BRAND = " | @MR_NoOB";
+
+    const injectBranding = (obj) => {
+        if (!obj || typeof obj !== 'object') return obj;
+        
+        const targetKeys = [
+            'name', 'title', 'drama_name', 'text', 'remark', 'content', 
+            'summary', 'covert', 'label', 'categoryCode', 'video_name', 
+            'movie_name', 'series_name', 'episode_name', 'show_name',
+            'film_name', 'production', 'studio', 'director', 'cast',
+            'description', 'overview', 'headline', 'subtitle'
+        ];
+        
+        if (Array.isArray(obj)) {
+            obj.forEach(item => injectBranding(item));
+            return obj;
+        }
+
+        for (let key in obj) {
+            if (typeof obj[key] === 'string' && targetKeys.includes(key)) {
+                if (!obj[key].includes('@MR_NoOB')) {
+                    obj[key] = obj[key] + BRAND;
+                }
+            } 
+            else if (typeof obj[key] === 'object' && obj[key] !== null) {
+                injectBranding(obj[key]);
+            }
+        }
+        return obj;
+    };
+
+    // ==========================================
     // 🎯 VIDEO PLAYBACK - MAIN FIX
     // ==========================================
     if (cleanPath.includes('/api/video/source') || 
@@ -27,10 +61,6 @@ export default async function handler(req, res) {
         cleanPath.includes('/api/video/play')) {
         
         try {
-            // Get video ID from URL
-            const videoId = urlPath.split('/').pop().split('?')[0];
-            
-            // First try to get real video source
             const headers = buildHeaders(req);
             const response = await fetch(targetBaseUrl + urlPath, {
                 method: method,
@@ -39,7 +69,6 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // If we got video data, modify it
             if (data && data.data) {
                 // Force unlock
                 data.data.vip = 1;
@@ -57,11 +86,9 @@ export default async function handler(req, res) {
                 // Fix video URL
                 let videoUrl = data.data.url || data.data.source || data.data.video || data.data.play_url;
                 if (videoUrl) {
-                    // Remove Tencent auth params
                     videoUrl = videoUrl.split('?')[0];
                     videoUrl = videoUrl.replace('http://', 'https://');
                     
-                    // Set all URL fields
                     data.data.url = videoUrl;
                     data.data.source = videoUrl;
                     data.data.video = videoUrl;
@@ -69,13 +96,14 @@ export default async function handler(req, res) {
                     data.data.direct_url = videoUrl;
                     data.data.stream_url = videoUrl;
                 } else {
-                    // If no URL found, use fallback
                     data.data.url = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
                     data.data.source = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
                     data.data.video = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
                     data.data.play_url = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-                    data.data.direct_url = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
                 }
+                
+                // Add branding to video title
+                injectBranding(data.data);
                 
                 data.success = true;
                 data.code = 200;
@@ -83,7 +111,6 @@ export default async function handler(req, res) {
                 return res.status(200).json(data);
             }
             
-            // If no data, return fallback
             return res.status(200).json({
                 code: 200,
                 message: "Success",
@@ -92,6 +119,8 @@ export default async function handler(req, res) {
                     source: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
                     video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
                     play_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                    title: "Big Buck Bunny | @MR_NoOB",
+                    name: "Big Buck Bunny | @MR_NoOB",
                     vip: 1,
                     isVip: true,
                     premium: true,
@@ -107,7 +136,6 @@ export default async function handler(req, res) {
             
         } catch (error) {
             console.error('Video Source Error:', error);
-            // Return fallback video
             return res.status(200).json({
                 code: 200,
                 message: "Success",
@@ -116,6 +144,8 @@ export default async function handler(req, res) {
                     source: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
                     video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
                     play_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                    title: "Big Buck Bunny | @MR_NoOB",
+                    name: "Big Buck Bunny | @MR_NoOB",
                     vip: 1,
                     isVip: true,
                     premium: true,
@@ -149,7 +179,6 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // Unlock all content
             if (data.data) {
                 const unlockAll = (item) => {
                     if (!item || typeof item !== 'object') return item;
@@ -173,14 +202,12 @@ export default async function handler(req, res) {
                     item.need_auth = false;
                     item.auth_required = false;
                     
-                    // Fix any video URLs
                     ['url', 'source', 'video', 'play_url', 'stream_url', 'hls_url', 'm3u8'].forEach(field => {
                         if (item[field] && typeof item[field] === 'string') {
                             item[field] = item[field].split('?')[0].replace('http://', 'https://');
                         }
                     });
                     
-                    // Recursive
                     if (Array.isArray(item.data)) item.data.forEach(unlockAll);
                     else if (item.data && typeof item.data === 'object') unlockAll(item.data);
                     if (Array.isArray(item.episodes)) item.episodes.forEach(unlockAll);
@@ -192,9 +219,13 @@ export default async function handler(req, res) {
                 };
                 
                 if (Array.isArray(data.data)) {
-                    data.data.forEach(unlockAll);
+                    data.data.forEach(item => {
+                        unlockAll(item);
+                        injectBranding(item);
+                    });
                 } else {
                     unlockAll(data.data);
+                    injectBranding(data.data);
                 }
             }
             
@@ -243,6 +274,11 @@ export default async function handler(req, res) {
                 data.data.user_type = "premium";
                 data.data.premium = true;
                 data.data.is_premium = true;
+                
+                // Add branding to profile name
+                if (data.data.name) {
+                    data.data.name = data.data.name + " | @MR_NoOB";
+                }
             }
             
             return res.status(200).json(data);
@@ -273,6 +309,7 @@ export default async function handler(req, res) {
                     item.locked = false;
                     item.can_play = true;
                     item.playable = true;
+                    injectBranding(item);
                 });
             }
             
@@ -356,7 +393,6 @@ export default async function handler(req, res) {
         if (contentType.includes('application/json')) {
             let data = await response.json();
             
-            // Unlock any content
             if (data.data) {
                 const unlock = (item) => {
                     if (!item || typeof item !== 'object') return item;
@@ -367,6 +403,7 @@ export default async function handler(req, res) {
                     item.locked = false;
                     item.can_play = true;
                     item.playable = true;
+                    injectBranding(item);
                     if (Array.isArray(item.data)) item.data.forEach(unlock);
                     else if (item.data && typeof item.data === 'object') unlock(item.data);
                     return item;
