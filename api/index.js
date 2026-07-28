@@ -1,9 +1,8 @@
 // ==========================================
-// 🎯 DrXmas / Mar-Show PROXY - ULTIMATE FIX
+// 🎯 DrXmas / Mar-Show PROXY - TENCLOUD FIX
 // ==========================================
 
 export default async function handler(req, res) {
-    // Extract the actual path from the request
     let urlPath = req.headers['x-invoke-path'] || req.url;
     const cleanPath = urlPath.split('?')[0];
     const method = req.method;
@@ -46,12 +45,12 @@ export default async function handler(req, res) {
     };
 
     // ==========================================
-    // 🔥 UNLOCK ALL CONTENT FUNCTION
+    // 🔥 ULTIMATE UNLOCK - INCLUDING TENCLOUD
     // ==========================================
     const unlockContent = (item) => {
         if (!item || typeof item !== 'object') return item;
         
-        // Main VIP flags
+        // All VIP flags
         item.vip = 1;
         item.isVip = true;
         item.is_vip = true;
@@ -70,7 +69,18 @@ export default async function handler(req, res) {
         item.rent_price = "0";
         item.buy_price = "0";
         
-        // Video specific
+        // Tencent Cloud specific fields
+        item.is_tencent = false;
+        item.tencent_play = true;
+        item.use_cdn = true;
+        item.drm_enabled = false;
+        item.playback_auth = null;
+        item.need_auth = false;
+        item.auth_required = false;
+        item.encrypted = false;
+        item.is_encrypted = false;
+        
+        // Video URL fields - ensure HTTPS
         if (item.video_url) {
             item.video_url = item.video_url.replace('http://', 'https://');
         }
@@ -80,8 +90,29 @@ export default async function handler(req, res) {
         if (item.stream_url) {
             item.stream_url = item.stream_url.replace('http://', 'https://');
         }
+        if (item.source_url) {
+            item.source_url = item.source_url.replace('http://', 'https://');
+        }
+        if (item.url) {
+            item.url = item.url.replace('http://', 'https://');
+        }
+        if (item.hls_url) {
+            item.hls_url = item.hls_url.replace('http://', 'https://');
+        }
+        if (item.m3u8) {
+            item.m3u8 = item.m3u8.replace('http://', 'https://');
+        }
         
-        // Check for nested video data
+        // Remove any Tencent Cloud restrictions
+        delete item.tencent_auth;
+        delete item.auth_token;
+        delete item.playback_token;
+        delete item.drm_key;
+        delete item.encryption_key;
+        delete item.license_url;
+        delete item.certificate;
+        
+        // Recursive unlock
         if (item.data && typeof item.data === 'object') {
             if (Array.isArray(item.data)) {
                 item.data.forEach(sub => unlockContent(sub));
@@ -89,13 +120,9 @@ export default async function handler(req, res) {
                 unlockContent(item.data);
             }
         }
-        
-        // Check for episodes
         if (item.episodes && Array.isArray(item.episodes)) {
             item.episodes.forEach(ep => unlockContent(ep));
         }
-        
-        // Check for season data
         if (item.seasons && Array.isArray(item.seasons)) {
             item.seasons.forEach(season => {
                 if (season.episodes && Array.isArray(season.episodes)) {
@@ -103,12 +130,180 @@ export default async function handler(req, res) {
                 }
             });
         }
+        if (item.list && Array.isArray(item.list)) {
+            item.list.forEach(sub => unlockContent(sub));
+        }
+        if (item.items && Array.isArray(item.items)) {
+            item.items.forEach(sub => unlockContent(sub));
+        }
         
         return item;
     };
 
     // ==========================================
-    // 🎯 PROFILE - COMPLETE VIP
+    // 🎯 VIDEO SOURCE / PLAYBACK - FIX TENCLOUD
+    // ==========================================
+    if (cleanPath.includes('/api/video/source') || 
+        cleanPath.includes('/api/play/source') ||
+        cleanPath.includes('/api/get/play') ||
+        cleanPath.includes('/api/source/') ||
+        cleanPath.includes('/api/playback/') ||
+        cleanPath.includes('/api/stream/') ||
+        cleanPath.includes('/api/video/play')) {
+        
+        try {
+            const headers = buildHeaders(req);
+            const response = await fetch(targetBaseUrl + urlPath, {
+                method: method,
+                headers: headers
+            });
+            
+            let data = await response.json();
+            
+            // Complete unlock for video source
+            if (data.data) {
+                unlockContent(data.data);
+                
+                // Force Tencent Cloud bypass
+                if (data.data.source || data.data.url || data.data.video) {
+                    const videoUrl = data.data.source || data.data.url || data.data.video || data.data.play_url;
+                    
+                    // Replace Tencent Cloud domain if present
+                    if (videoUrl && videoUrl.includes('tencent')) {
+                        // Try to get direct URL by removing auth params
+                        const cleanUrl = videoUrl.split('?')[0];
+                        data.data.url = cleanUrl;
+                        data.data.source = cleanUrl;
+                        data.data.video = cleanUrl;
+                        data.data.play_url = cleanUrl;
+                        data.data.direct_url = cleanUrl;
+                    }
+                    
+                    // Mark as playable
+                    data.data.can_play = true;
+                    data.data.playable = true;
+                    data.data.available = true;
+                    data.data.status = "success";
+                    data.data.need_auth = false;
+                    data.data.auth_required = false;
+                    data.data.drm_enabled = false;
+                    data.data.tencent_play = false;
+                    
+                    // Add direct playback flag
+                    data.data.direct_play = true;
+                    data.data.no_auth = true;
+                }
+            }
+
+            injectBranding(data);
+            return res.status(200).json(data);
+        } catch (error) {
+            console.error('Video Source Error:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // ==========================================
+    // 🎯 TENCLOUD TOKEN/AUTH ENDPOINTS - FAKE
+    // ==========================================
+    if (cleanPath.includes('/api/tencent/') || 
+        cleanPath.includes('/api/cloud/') ||
+        cleanPath.includes('/api/license/') ||
+        cleanPath.includes('/api/auth/play') ||
+        cleanPath.includes('/api/token/play')) {
+        
+        return res.status(200).json({
+            code: 200,
+            message: "Success",
+            data: {
+                token: "DIRECT_PLAY_" + Date.now(),
+                status: "success",
+                playable: true,
+                auth_required: false,
+                drm_enabled: false,
+                license_url: null,
+                certificate: null,
+                expiry: "2099-12-31"
+            },
+            success: true
+        });
+    }
+
+    // ==========================================
+    // 🎯 VIDEO PLAY ENDPOINT
+    // ==========================================
+    if (cleanPath.includes('/api/video/play') || 
+        cleanPath.includes('/api/play/video') ||
+        cleanPath.includes('/api/watch/play')) {
+        
+        try {
+            const headers = buildHeaders(req);
+            const response = await fetch(targetBaseUrl + urlPath, {
+                method: method,
+                headers: headers
+            });
+            
+            let data = await response.json();
+            
+            if (data.data) {
+                unlockContent(data.data);
+                
+                // Force direct play
+                if (data.data.video_url || data.data.play_url || data.data.url) {
+                    const vidUrl = data.data.video_url || data.data.play_url || data.data.url;
+                    data.data.direct_url = vidUrl.replace('http://', 'https://');
+                    data.data.can_play = true;
+                    data.data.playable = true;
+                    data.data.need_auth = false;
+                    data.data.auth_required = false;
+                    data.data.drm_enabled = false;
+                }
+            }
+
+            injectBranding(data);
+            return res.status(200).json(data);
+        } catch (error) {
+            console.error('Video Play Error:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // ==========================================
+    // 🎯 ALL VIDEO/MOVIE/DRAMA ENDPOINTS
+    // ==========================================
+    if (cleanPath.includes('/api/video/') || 
+        cleanPath.includes('/api/drama/') ||
+        cleanPath.includes('/api/movie/') ||
+        cleanPath.includes('/api/episode/') ||
+        cleanPath.includes('/api/watch/')) {
+        
+        try {
+            const headers = buildHeaders(req);
+            const response = await fetch(targetBaseUrl + urlPath, {
+                method: method,
+                headers: headers
+            });
+            
+            let data = await response.json();
+            
+            if (data.data) {
+                if (Array.isArray(data.data)) {
+                    data.data.forEach(item => unlockContent(item));
+                } else {
+                    unlockContent(data.data);
+                }
+            }
+
+            injectBranding(data);
+            return res.status(200).json(data);
+        } catch (error) {
+            console.error('Video Error:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // ==========================================
+    // 🎯 PROFILE - VIP
     // ==========================================
     if (cleanPath === '/api/user/v2/profile') {
         try {
@@ -172,116 +367,6 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🎯 VIDEO PLAYBACK ENDPOINTS
-    // ==========================================
-    if (cleanPath.includes('/api/video/') || 
-        cleanPath.includes('/api/drama/') ||
-        cleanPath.includes('/api/movie/') ||
-        cleanPath.includes('/api/episode/') ||
-        cleanPath.includes('/api/play/') ||
-        cleanPath.includes('/api/stream/') ||
-        cleanPath.includes('/api/watch/')) {
-        
-        try {
-            const headers = buildHeaders(req);
-            const response = await fetch(targetBaseUrl + urlPath, {
-                method: method,
-                headers: headers
-            });
-            
-            let data = await response.json();
-            
-            // Unlock everything
-            if (data.data) {
-                if (Array.isArray(data.data)) {
-                    data.data.forEach(item => unlockContent(item));
-                } else {
-                    unlockContent(data.data);
-                }
-            }
-
-            injectBranding(data);
-            return res.status(200).json(data);
-        } catch (error) {
-            console.error('Video Error:', error);
-            return res.status(500).json({ error: error.message });
-        }
-    }
-
-    // ==========================================
-    // 🎯 CATEGORY/LISTING - UNLOCK ALL
-    // ==========================================
-    if (cleanPath.includes('/api/category/') || 
-        cleanPath.includes('/api/list/') ||
-        cleanPath.includes('/api/home/') ||
-        cleanPath.includes('/api/recommend/')) {
-        
-        try {
-            const headers = buildHeaders(req);
-            const response = await fetch(targetBaseUrl + urlPath, {
-                method: method,
-                headers: headers
-            });
-            
-            let data = await response.json();
-            
-            if (data.data) {
-                if (Array.isArray(data.data)) {
-                    data.data.forEach(item => unlockContent(item));
-                } else {
-                    unlockContent(data.data);
-                }
-            }
-
-            injectBranding(data);
-            return res.status(200).json(data);
-        } catch (error) {
-            console.error('Category Error:', error);
-            return res.status(500).json({ error: error.message });
-        }
-    }
-
-    // ==========================================
-    // 🎯 VIDEO SOURCE URL - DIRECT PLAYBACK
-    // ==========================================
-    if (cleanPath.includes('/video/source') || 
-        cleanPath.includes('/get/play') ||
-        cleanPath.includes('/source/')) {
-        
-        try {
-            const headers = buildHeaders(req);
-            const response = await fetch(targetBaseUrl + urlPath, {
-                method: method,
-                headers: headers
-            });
-            
-            let data = await response.json();
-            
-            // Unlock video source
-            if (data.data) {
-                unlockContent(data.data);
-                if (data.data.url) {
-                    data.data.url = data.data.url.replace('http://', 'https://');
-                    data.data.status = "success";
-                    data.data.playable = true;
-                }
-                if (data.data.source) {
-                    data.data.source = data.data.source.replace('http://', 'https://');
-                }
-                if (data.data.video) {
-                    data.data.video = data.data.video.replace('http://', 'https://');
-                }
-            }
-
-            injectBranding(data);
-            return res.status(200).json(data);
-        } catch (error) {
-            console.error('Source Error:', error);
-            return res.status(500).json({ error: error.message });
-        }
-    }
-
-    // ==========================================
     // 🚫 BLOCK ADS/TRACKING
     // ==========================================
     if (cleanPath.includes('/analytics') || 
@@ -316,7 +401,8 @@ export default async function handler(req, res) {
                 success: true,
                 paid: true,
                 unlocked: true,
-                premium: true
+                premium: true,
+                direct_access: true
             },
             success: true
         });
@@ -355,7 +441,6 @@ export default async function handler(req, res) {
         if (contentType.includes('application/json')) {
             let data = await response.json();
             
-            // Unlock any content
             if (data.data) {
                 if (Array.isArray(data.data)) {
                     data.data.forEach(item => unlockContent(item));
@@ -393,12 +478,11 @@ export default async function handler(req, res) {
 }
 
 // ==========================================
-// 🛠 BUILD HEADERS - ULTIMATE PREMIUM
+// 🛠 BUILD HEADERS
 // ==========================================
 function buildHeaders(req) {
     const headers = {};
 
-    // Copy original headers
     if (req.headers) {
         Object.keys(req.headers).forEach(key => {
             if (!['accept-encoding', 'content-length', 'host', 'connection'].includes(key.toLowerCase())) {
@@ -407,7 +491,7 @@ function buildHeaders(req) {
         });
     }
 
-    // 🔥 ULTIMATE PREMIUM HEADERS
+    // Premium headers
     headers['project'] = 'mar-show';
     headers['pkg'] = 'com.marshows';
     headers['device-id'] = 'ca6e0ece0e7e3451';
@@ -422,10 +506,10 @@ function buildHeaders(req) {
     headers['fcm-token'] = 'eRo13f1dQ2q6EhXay3BiI7:APA91bGQaVEn_4t91bzA3Np2Bd33LxLneMh1fbS9AvRnjkglgt2-zT15S3gGMM9fiWAtZcHCGkRUPDWlzwo1H9JdVHOHV42TxPMFBYjT5svVydit9lCwv9w';
     headers['apps-flyer-id'] = '1785053309902-1698556423230743718';
     headers['af-status'] = 'Organic';
-    
-    // Add VIP token
     headers['authorization'] = 'Bearer PREMIUM_ACCESS_TOKEN';
     headers['x-vip-token'] = 'LIFETIME_PREMIUM_2026';
+    headers['x-playback-mode'] = 'direct';
+    headers['x-drm-bypass'] = 'true';
     
     return headers;
 }
