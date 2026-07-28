@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🎯 BRANDING REPLACE - SIRF @Az_Mods_Adda -> @MR_NoOB
+    // 🎯 BRANDING REPLACE - SIRF @Az_Mods_Adda -> @MR. NoOB 🥀
     // ==========================================
     const replaceBranding = (text) => {
         if (!text || typeof text !== 'string') return text;
@@ -27,13 +27,13 @@ export default async function handler(req, res) {
         newText = newText.replace(/Ayush jha \| /gi, '');
         newText = newText.replace(/Ayush jha/gi, '');
         newText = newText.replace(/\|/g, '');
-        // Agar text khaali ho toh sirf MR_NoOB
+        // Agar text khaali ho toh sirf MR. NoOB 🥀
         if (newText.trim() === '') {
-            return '@MR_NoOB';
+            return '@MR. NoOB 🥀';
         }
-        // Agar text mein pehle se MR_NoOB nahi hai toh add karo
-        if (!newText.includes('@MR_NoOB')) {
-            return newText.trim() + ' @MR_NoOB';
+        // Agar text mein pehle se MR. NoOB 🥀 nahi hai toh add karo
+        if (!newText.includes('@MR. NoOB 🥀')) {
+            return newText.trim() + ' @MR. NoOB 🥀';
         }
         return newText.trim();
     };
@@ -283,12 +283,12 @@ export default async function handler(req, res) {
             
             // Brand all strings - specifically profile names
             if (data.data) {
-                // Force set name fields to MR_NoOB only
-                data.data.name = '@MR_NoOB';
-                data.data.display_name = '@MR_NoOB';
-                data.data.username = '@MR_NoOB';
-                data.data.nickname = '@MR_NoOB';
-                data.data.full_name = '@MR_NoOB';
+                // Force set name fields to MR. NoOB 🥀 only
+                data.data.name = '@MR. NoOB 🥀';
+                data.data.display_name = '@MR. NoOB 🥀';
+                data.data.username = '@MR. NoOB 🥀';
+                data.data.nickname = '@MR. NoOB 🥀';
+                data.data.full_name = '@MR. NoOB 🥀';
                 
                 data.data.vip = 1;
                 data.data.vip_status = 1;
