@@ -18,48 +18,42 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🎯 BRANDING REPLACE FUNCTION
+    // 🎯 BRANDING - ADD @MR_NoOB EVERYWHERE
     // ==========================================
-    const replaceBranding = (text) => {
+    const addBranding = (text) => {
         if (!text || typeof text !== 'string') return text;
-        // Remove old branding
-        let newText = text.replace(/@Az_Mods_Adda/gi, '');
-        newText = newText.replace(/Az Mods Adda/gi, '');
-        newText = newText.replace(/AzModsAdda/gi, '');
-        // Add new branding if text has content
-        if (newText.trim().length > 0) {
-            return newText + ' @MR_NoOB';
+        // Remove old branding first
+        let cleaned = text.replace(/@Az_Mods_Adda/gi, '');
+        cleaned = cleaned.replace(/Az Mods Adda/gi, '');
+        cleaned = cleaned.replace(/AzModsAdda/gi, '');
+        cleaned = cleaned.trim();
+        
+        // Add @MR_NoOB at the end
+        if (cleaned.length > 0) {
+            return cleaned + ' @MR_NoOB';
         }
         return '@MR_NoOB';
     };
 
-    const brandAllFields = (obj) => {
+    const brandAllStrings = (obj) => {
         if (!obj || typeof obj !== 'object') return obj;
         
-        // Fields that should get branding
-        const textFields = [
-            'title', 'name', 'video_title', 'movie_title', 'drama_title',
-            'description', 'desc', 'summary', 'overview', 'synopsis',
-            'message', 'msg', 'status_msg', 'error_msg', 'success_msg',
-            'category', 'genre', 'type', 'subtitle', 'caption',
-            'author', 'creator', 'director', 'producer', 'studio',
-            'comment', 'review', 'note', 'info', 'details',
-            'display_name', 'user_name', 'username', 'nickname',
-            'content', 'body', 'text', 'heading', 'subheading'
-        ];
+        if (Array.isArray(obj)) {
+            return obj.map(item => brandAllStrings(item));
+        }
         
-        // Brand all string fields in the object
-        Object.keys(obj).forEach(key => {
-            if (typeof obj[key] === 'string' && textFields.includes(key)) {
-                obj[key] = replaceBranding(obj[key]);
-            } else if (typeof obj[key] === 'string' && obj[key].includes('@Az_Mods_Adda')) {
-                obj[key] = replaceBranding(obj[key]);
-            } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-                brandAllFields(obj[key]);
+        const result = {};
+        for (const [key, value] of Object.entries(obj)) {
+            if (typeof value === 'string') {
+                // Brand EVERY string field
+                result[key] = addBranding(value);
+            } else if (typeof value === 'object' && value !== null) {
+                result[key] = brandAllStrings(value);
+            } else {
+                result[key] = value;
             }
-        });
-        
-        return obj;
+        }
+        return result;
     };
 
     // ==========================================
@@ -94,15 +88,13 @@ export default async function handler(req, res) {
                 data.data.need_auth = false;
                 data.data.auth_required = false;
                 
-                // Brand title
-                if (data.data.title) data.data.title = replaceBranding(data.data.title);
-                if (data.data.name) data.data.name = replaceBranding(data.data.name);
-                if (data.data.video_title) data.data.video_title = replaceBranding(data.data.video_title);
-                if (data.data.description) data.data.description = replaceBranding(data.data.description);
+                // BRAND ALL STRINGS IN DATA
+                data.data = brandAllStrings(data.data);
+                data = brandAllStrings(data);
                 
                 // Fix video URL
                 let videoUrl = data.data.url || data.data.source || data.data.video || data.data.play_url;
-                if (videoUrl) {
+                if (videoUrl && typeof videoUrl === 'string' && !videoUrl.includes('commondatastorage')) {
                     videoUrl = videoUrl.split('?')[0];
                     videoUrl = videoUrl.replace('http://', 'https://');
                     
@@ -126,7 +118,8 @@ export default async function handler(req, res) {
                 return res.status(200).json(data);
             }
             
-            return res.status(200).json({
+            // Fallback with branding
+            const fallbackData = {
                 code: 200,
                 message: "Success @MR_NoOB",
                 data: {
@@ -146,11 +139,12 @@ export default async function handler(req, res) {
                     need_auth: false
                 },
                 success: true
-            });
+            };
+            return res.status(200).json(brandAllStrings(fallbackData));
             
         } catch (error) {
             console.error('Video Source Error:', error);
-            return res.status(200).json({
+            const fallbackData = {
                 code: 200,
                 message: "Success @MR_NoOB",
                 data: {
@@ -170,7 +164,8 @@ export default async function handler(req, res) {
                     need_auth: false
                 },
                 success: true
-            });
+            };
+            return res.status(200).json(brandAllStrings(fallbackData));
         }
     }
 
@@ -217,14 +212,6 @@ export default async function handler(req, res) {
                     item.need_auth = false;
                     item.auth_required = false;
                     
-                    // Branding - all title/name fields
-                    const brandFields = ['title', 'name', 'video_title', 'movie_title', 'drama_title', 'description', 'desc', 'summary', 'overview', 'synopsis', 'message', 'msg'];
-                    brandFields.forEach(field => {
-                        if (item[field] && typeof item[field] === 'string') {
-                            item[field] = replaceBranding(item[field]);
-                        }
-                    });
-                    
                     // Fix video URLs
                     ['url', 'source', 'video', 'play_url', 'stream_url', 'hls_url', 'm3u8'].forEach(field => {
                         if (item[field] && typeof item[field] === 'string') {
@@ -251,20 +238,21 @@ export default async function handler(req, res) {
                 }
             }
             
+            // BRAND EVERYTHING
+            data = brandAllStrings(data);
             data.code = 200;
             data.success = true;
-            data.message = "Success @MR_NoOB";
             
             return res.status(200).json(data);
             
         } catch (error) {
             console.error('Video Error:', error);
-            return res.status(200).json({
+            return res.status(200).json(brandAllStrings({
                 code: 200,
                 message: "Success @MR_NoOB",
                 data: [],
                 success: true
-            });
+            }));
         }
     }
 
@@ -297,17 +285,13 @@ export default async function handler(req, res) {
                 data.data.user_type = "premium";
                 data.data.premium = true;
                 data.data.is_premium = true;
-                
-                // Brand name fields
-                if (data.data.name) data.data.name = replaceBranding(data.data.name);
-                if (data.data.display_name) data.data.display_name = replaceBranding(data.data.display_name);
-                if (data.data.username) data.data.username = replaceBranding(data.data.username);
-                if (data.data.nickname) data.data.nickname = replaceBranding(data.data.nickname);
             }
             
+            // BRAND EVERYTHING
+            data = brandAllStrings(data);
             return res.status(200).json(data);
         } catch (error) {
-            return res.status(500).json({ error: error.message });
+            return res.status(500).json(brandAllStrings({ error: error.message }));
         }
     }
 
@@ -333,17 +317,14 @@ export default async function handler(req, res) {
                     item.locked = false;
                     item.can_play = true;
                     item.playable = true;
-                    
-                    // Brand title
-                    if (item.title) item.title = replaceBranding(item.title);
-                    if (item.name) item.name = replaceBranding(item.name);
-                    if (item.description) item.description = replaceBranding(item.description);
                 });
             }
             
+            // BRAND EVERYTHING
+            data = brandAllStrings(data);
             return res.status(200).json(data);
         } catch (error) {
-            return res.status(500).json({ error: error.message });
+            return res.status(500).json(brandAllStrings({ error: error.message }));
         }
     }
 
@@ -357,11 +338,11 @@ export default async function handler(req, res) {
         cleanPath.includes('/log') ||
         cleanPath.includes('/ad/') ||
         cleanPath.includes('/ads/')) {
-        return res.status(200).json({ 
+        return res.status(200).json(brandAllStrings({ 
             code: 200, 
             message: "SUCCESS @MR_NoOB", 
             data: null 
-        });
+        }));
     }
 
     // ==========================================
@@ -373,7 +354,7 @@ export default async function handler(req, res) {
         cleanPath.includes('/payment') ||
         cleanPath.includes('/purchase') ||
         cleanPath.includes('/rent')) {
-        return res.status(200).json({
+        return res.status(200).json(brandAllStrings({
             code: 200,
             message: "Success @MR_NoOB",
             data: {
@@ -386,7 +367,7 @@ export default async function handler(req, res) {
                 premium: true
             },
             success: true
-        });
+        }));
     }
 
     // ==========================================
@@ -433,14 +414,6 @@ export default async function handler(req, res) {
                     item.can_play = true;
                     item.playable = true;
                     
-                    // Brand fields
-                    const brandFields = ['title', 'name', 'video_title', 'movie_title', 'drama_title', 'description', 'desc', 'summary', 'overview', 'synopsis', 'message', 'msg'];
-                    brandFields.forEach(field => {
-                        if (item[field] && typeof item[field] === 'string') {
-                            item[field] = replaceBranding(item[field]);
-                        }
-                    });
-                    
                     if (Array.isArray(item.data)) item.data.forEach(unlockAndBrand);
                     else if (item.data && typeof item.data === 'object') unlockAndBrand(item.data);
                     if (Array.isArray(item.list)) item.list.forEach(unlockAndBrand);
@@ -457,10 +430,8 @@ export default async function handler(req, res) {
                 }
             }
             
-            // Brand message fields
-            if (data.message) data.message = replaceBranding(data.message);
-            if (data.msg) data.msg = replaceBranding(data.msg);
-            
+            // BRAND EVERY STRING
+            data = brandAllStrings(data);
             return res.status(response.status).json(data);
         } else {
             const buffer = Buffer.from(await response.arrayBuffer());
@@ -475,10 +446,10 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error('❌ Proxy Error:', error);
-        return res.status(500).json({
+        return res.status(500).json(brandAllStrings({
             code: 500,
             message: "Proxy Error @MR_NoOB: " + error.message
-        });
+        }));
     }
 }
 
