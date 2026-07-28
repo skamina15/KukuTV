@@ -1,5 +1,5 @@
 // ==========================================
-// 🎯 DrXmas / Mar-Show PROXY - @MR_NoOB BRANDING
+// 🎯 DrXmas / Mar-Show PROXY - @MR_NoOB FINAL
 // ==========================================
 
 export default async function handler(req, res) {
@@ -18,19 +18,25 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🏷️ BRANDING - @MR_NoOB
+    // 🏷️ BRANDING - @MR_NoOB (FORCED)
     // ==========================================
     const BRAND = " | @MR_NoOB";
 
     const injectBranding = (obj) => {
         if (!obj || typeof obj !== 'object') return obj;
         
+        // ALL possible text fields
         const targetKeys = [
             'name', 'title', 'drama_name', 'text', 'remark', 'content', 
             'summary', 'covert', 'label', 'categoryCode', 'video_name', 
             'movie_name', 'series_name', 'episode_name', 'show_name',
             'film_name', 'production', 'studio', 'director', 'cast',
-            'description', 'overview', 'headline', 'subtitle'
+            'description', 'overview', 'headline', 'subtitle',
+            'drama', 'movie', 'episode', 'season', 'video',
+            'category', 'genre', 'tag', 'keyword',
+            'original_title', 'english_title', 'local_title',
+            'full_name', 'display_name', 'user_name',
+            'heading', 'subheading', 'caption'
         ];
         
         if (Array.isArray(obj)) {
@@ -40,9 +46,10 @@ export default async function handler(req, res) {
 
         for (let key in obj) {
             if (typeof obj[key] === 'string' && targetKeys.includes(key)) {
-                if (!obj[key].includes('@MR_NoOB')) {
-                    obj[key] = obj[key] + BRAND;
-                }
+                // Remove any existing branding first
+                obj[key] = obj[key].replace(/\s*\|\s*@\w+/g, '');
+                // Add new branding
+                obj[key] = obj[key] + BRAND;
             } 
             else if (typeof obj[key] === 'object' && obj[key] !== null) {
                 injectBranding(obj[key]);
@@ -52,7 +59,7 @@ export default async function handler(req, res) {
     };
 
     // ==========================================
-    // 🎯 VIDEO PLAYBACK - MAIN FIX
+    // 🎯 VIDEO PLAYBACK
     // ==========================================
     if (cleanPath.includes('/api/video/source') || 
         cleanPath.includes('/api/play/source') ||
@@ -70,7 +77,6 @@ export default async function handler(req, res) {
             let data = await response.json();
             
             if (data && data.data) {
-                // Force unlock
                 data.data.vip = 1;
                 data.data.isVip = true;
                 data.data.premium = true;
@@ -83,12 +89,10 @@ export default async function handler(req, res) {
                 data.data.need_auth = false;
                 data.data.auth_required = false;
                 
-                // Fix video URL
                 let videoUrl = data.data.url || data.data.source || data.data.video || data.data.play_url;
                 if (videoUrl) {
                     videoUrl = videoUrl.split('?')[0];
                     videoUrl = videoUrl.replace('http://', 'https://');
-                    
                     data.data.url = videoUrl;
                     data.data.source = videoUrl;
                     data.data.video = videoUrl;
@@ -102,7 +106,7 @@ export default async function handler(req, res) {
                     data.data.play_url = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
                 }
                 
-                // Add branding to video title
+                // FORCE BRANDING ON ALL TEXT FIELDS
                 injectBranding(data.data);
                 
                 data.success = true;
@@ -121,6 +125,8 @@ export default async function handler(req, res) {
                     play_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
                     title: "Big Buck Bunny | @MR_NoOB",
                     name: "Big Buck Bunny | @MR_NoOB",
+                    drama_name: "Big Buck Bunny | @MR_NoOB",
+                    video_name: "Big Buck Bunny | @MR_NoOB",
                     vip: 1,
                     isVip: true,
                     premium: true,
@@ -135,7 +141,6 @@ export default async function handler(req, res) {
             });
             
         } catch (error) {
-            console.error('Video Source Error:', error);
             return res.status(200).json({
                 code: 200,
                 message: "Success",
@@ -146,6 +151,8 @@ export default async function handler(req, res) {
                     play_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
                     title: "Big Buck Bunny | @MR_NoOB",
                     name: "Big Buck Bunny | @MR_NoOB",
+                    drama_name: "Big Buck Bunny | @MR_NoOB",
+                    video_name: "Big Buck Bunny | @MR_NoOB",
                     vip: 1,
                     isVip: true,
                     premium: true,
@@ -168,7 +175,12 @@ export default async function handler(req, res) {
         cleanPath.includes('/api/drama/') ||
         cleanPath.includes('/api/movie/') ||
         cleanPath.includes('/api/episode/') ||
-        cleanPath.includes('/api/watch/')) {
+        cleanPath.includes('/api/watch/') ||
+        cleanPath.includes('/api/category/') ||
+        cleanPath.includes('/api/list/') ||
+        cleanPath.includes('/api/home/') ||
+        cleanPath.includes('/api/recommend/') ||
+        cleanPath.includes('/api/search/')) {
         
         try {
             const headers = buildHeaders(req);
@@ -208,24 +220,25 @@ export default async function handler(req, res) {
                         }
                     });
                     
+                    // FORCE BRANDING
+                    injectBranding(item);
+                    
                     if (Array.isArray(item.data)) item.data.forEach(unlockAll);
                     else if (item.data && typeof item.data === 'object') unlockAll(item.data);
                     if (Array.isArray(item.episodes)) item.episodes.forEach(unlockAll);
                     if (Array.isArray(item.seasons)) item.seasons.forEach(unlockAll);
                     if (Array.isArray(item.list)) item.list.forEach(unlockAll);
                     if (Array.isArray(item.items)) item.items.forEach(unlockAll);
+                    if (Array.isArray(item.results)) item.results.forEach(unlockAll);
+                    if (Array.isArray(item.content)) item.content.forEach(unlockAll);
                     
                     return item;
                 };
                 
                 if (Array.isArray(data.data)) {
-                    data.data.forEach(item => {
-                        unlockAll(item);
-                        injectBranding(item);
-                    });
+                    data.data.forEach(item => unlockAll(item));
                 } else {
                     unlockAll(data.data);
-                    injectBranding(data.data);
                 }
             }
             
@@ -235,7 +248,6 @@ export default async function handler(req, res) {
             return res.status(200).json(data);
             
         } catch (error) {
-            console.error('Video Error:', error);
             return res.status(200).json({
                 code: 200,
                 message: "Success",
@@ -275,9 +287,15 @@ export default async function handler(req, res) {
                 data.data.premium = true;
                 data.data.is_premium = true;
                 
-                // Add branding to profile name
+                // Profile branding
                 if (data.data.name) {
-                    data.data.name = data.data.name + " | @MR_NoOB";
+                    data.data.name = data.data.name.replace(/\s*\|\s*@\w+/g, '') + " | @MR_NoOB";
+                }
+                if (data.data.full_name) {
+                    data.data.full_name = data.data.full_name.replace(/\s*\|\s*@\w+/g, '') + " | @MR_NoOB";
+                }
+                if (data.data.display_name) {
+                    data.data.display_name = data.data.display_name.replace(/\s*\|\s*@\w+/g, '') + " | @MR_NoOB";
                 }
             }
             
@@ -406,6 +424,8 @@ export default async function handler(req, res) {
                     injectBranding(item);
                     if (Array.isArray(item.data)) item.data.forEach(unlock);
                     else if (item.data && typeof item.data === 'object') unlock(item.data);
+                    if (Array.isArray(item.results)) item.results.forEach(unlock);
+                    if (Array.isArray(item.items)) item.items.forEach(unlock);
                     return item;
                 };
                 
@@ -414,6 +434,14 @@ export default async function handler(req, res) {
                 } else {
                     unlock(data.data);
                 }
+            }
+            
+            // Also add branding to any text in response
+            if (data.message) {
+                data.message = data.message.replace(/\s*\|\s*@\w+/g, '') + " | @MR_NoOB";
+            }
+            if (data.msg) {
+                data.msg = data.msg.replace(/\s*\|\s*@\w+/g, '') + " | @MR_NoOB";
             }
             
             return res.status(response.status).json(data);
@@ -451,7 +479,6 @@ function buildHeaders(req) {
         });
     }
 
-    // Premium device headers
     headers['project'] = 'mar-show';
     headers['pkg'] = 'com.marshows';
     headers['device-id'] = 'ca6e0ece0e7e3451';
