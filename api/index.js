@@ -18,6 +18,51 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
+    // 🎯 BRANDING REPLACE FUNCTION
+    // ==========================================
+    const replaceBranding = (text) => {
+        if (!text || typeof text !== 'string') return text;
+        // Remove old branding
+        let newText = text.replace(/@Az_Mods_Adda/gi, '');
+        newText = newText.replace(/Az Mods Adda/gi, '');
+        newText = newText.replace(/AzModsAdda/gi, '');
+        // Add new branding if text has content
+        if (newText.trim().length > 0) {
+            return newText + ' @MR_NoOB';
+        }
+        return '@MR_NoOB';
+    };
+
+    const brandAllFields = (obj) => {
+        if (!obj || typeof obj !== 'object') return obj;
+        
+        // Fields that should get branding
+        const textFields = [
+            'title', 'name', 'video_title', 'movie_title', 'drama_title',
+            'description', 'desc', 'summary', 'overview', 'synopsis',
+            'message', 'msg', 'status_msg', 'error_msg', 'success_msg',
+            'category', 'genre', 'type', 'subtitle', 'caption',
+            'author', 'creator', 'director', 'producer', 'studio',
+            'comment', 'review', 'note', 'info', 'details',
+            'display_name', 'user_name', 'username', 'nickname',
+            'content', 'body', 'text', 'heading', 'subheading'
+        ];
+        
+        // Brand all string fields in the object
+        Object.keys(obj).forEach(key => {
+            if (typeof obj[key] === 'string' && textFields.includes(key)) {
+                obj[key] = replaceBranding(obj[key]);
+            } else if (typeof obj[key] === 'string' && obj[key].includes('@Az_Mods_Adda')) {
+                obj[key] = replaceBranding(obj[key]);
+            } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+                brandAllFields(obj[key]);
+            }
+        });
+        
+        return obj;
+    };
+
+    // ==========================================
     // 🎯 VIDEO PLAYBACK - MAIN FIX
     // ==========================================
     if (cleanPath.includes('/api/video/source') || 
@@ -27,10 +72,6 @@ export default async function handler(req, res) {
         cleanPath.includes('/api/video/play')) {
         
         try {
-            // Get video ID from URL
-            const videoId = urlPath.split('/').pop().split('?')[0];
-            
-            // First try to get real video source
             const headers = buildHeaders(req);
             const response = await fetch(targetBaseUrl + urlPath, {
                 method: method,
@@ -39,7 +80,6 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // If we got video data, modify it
             if (data && data.data) {
                 // Force unlock
                 data.data.vip = 1;
@@ -54,14 +94,18 @@ export default async function handler(req, res) {
                 data.data.need_auth = false;
                 data.data.auth_required = false;
                 
+                // Brand title
+                if (data.data.title) data.data.title = replaceBranding(data.data.title);
+                if (data.data.name) data.data.name = replaceBranding(data.data.name);
+                if (data.data.video_title) data.data.video_title = replaceBranding(data.data.video_title);
+                if (data.data.description) data.data.description = replaceBranding(data.data.description);
+                
                 // Fix video URL
                 let videoUrl = data.data.url || data.data.source || data.data.video || data.data.play_url;
                 if (videoUrl) {
-                    // Remove Tencent auth params
                     videoUrl = videoUrl.split('?')[0];
                     videoUrl = videoUrl.replace('http://', 'https://');
                     
-                    // Set all URL fields
                     data.data.url = videoUrl;
                     data.data.source = videoUrl;
                     data.data.video = videoUrl;
@@ -69,7 +113,6 @@ export default async function handler(req, res) {
                     data.data.direct_url = videoUrl;
                     data.data.stream_url = videoUrl;
                 } else {
-                    // If no URL found, use fallback
                     data.data.url = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
                     data.data.source = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
                     data.data.video = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
@@ -83,15 +126,15 @@ export default async function handler(req, res) {
                 return res.status(200).json(data);
             }
             
-            // If no data, return fallback
             return res.status(200).json({
                 code: 200,
-                message: "Success",
+                message: "Success @MR_NoOB",
                 data: {
                     url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
                     source: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
                     video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
                     play_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                    title: "Free Video @MR_NoOB",
                     vip: 1,
                     isVip: true,
                     premium: true,
@@ -107,15 +150,15 @@ export default async function handler(req, res) {
             
         } catch (error) {
             console.error('Video Source Error:', error);
-            // Return fallback video
             return res.status(200).json({
                 code: 200,
-                message: "Success",
+                message: "Success @MR_NoOB",
                 data: {
                     url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
                     source: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
                     video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
                     play_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                    title: "Free Video @MR_NoOB",
                     vip: 1,
                     isVip: true,
                     premium: true,
@@ -149,11 +192,12 @@ export default async function handler(req, res) {
             
             let data = await response.json();
             
-            // Unlock all content
+            // Unlock and brand all content
             if (data.data) {
-                const unlockAll = (item) => {
+                const unlockAndBrand = (item) => {
                     if (!item || typeof item !== 'object') return item;
                     
+                    // Unlock
                     item.vip = 1;
                     item.isVip = true;
                     item.is_vip = true;
@@ -173,7 +217,15 @@ export default async function handler(req, res) {
                     item.need_auth = false;
                     item.auth_required = false;
                     
-                    // Fix any video URLs
+                    // Branding - all title/name fields
+                    const brandFields = ['title', 'name', 'video_title', 'movie_title', 'drama_title', 'description', 'desc', 'summary', 'overview', 'synopsis', 'message', 'msg'];
+                    brandFields.forEach(field => {
+                        if (item[field] && typeof item[field] === 'string') {
+                            item[field] = replaceBranding(item[field]);
+                        }
+                    });
+                    
+                    // Fix video URLs
                     ['url', 'source', 'video', 'play_url', 'stream_url', 'hls_url', 'm3u8'].forEach(field => {
                         if (item[field] && typeof item[field] === 'string') {
                             item[field] = item[field].split('?')[0].replace('http://', 'https://');
@@ -181,25 +233,27 @@ export default async function handler(req, res) {
                     });
                     
                     // Recursive
-                    if (Array.isArray(item.data)) item.data.forEach(unlockAll);
-                    else if (item.data && typeof item.data === 'object') unlockAll(item.data);
-                    if (Array.isArray(item.episodes)) item.episodes.forEach(unlockAll);
-                    if (Array.isArray(item.seasons)) item.seasons.forEach(unlockAll);
-                    if (Array.isArray(item.list)) item.list.forEach(unlockAll);
-                    if (Array.isArray(item.items)) item.items.forEach(unlockAll);
+                    if (Array.isArray(item.data)) item.data.forEach(unlockAndBrand);
+                    else if (item.data && typeof item.data === 'object') unlockAndBrand(item.data);
+                    if (Array.isArray(item.episodes)) item.episodes.forEach(unlockAndBrand);
+                    if (Array.isArray(item.seasons)) item.seasons.forEach(unlockAndBrand);
+                    if (Array.isArray(item.list)) item.list.forEach(unlockAndBrand);
+                    if (Array.isArray(item.items)) item.items.forEach(unlockAndBrand);
+                    if (Array.isArray(item.results)) item.results.forEach(unlockAndBrand);
                     
                     return item;
                 };
                 
                 if (Array.isArray(data.data)) {
-                    data.data.forEach(unlockAll);
+                    data.data.forEach(unlockAndBrand);
                 } else {
-                    unlockAll(data.data);
+                    unlockAndBrand(data.data);
                 }
             }
             
             data.code = 200;
             data.success = true;
+            data.message = "Success @MR_NoOB";
             
             return res.status(200).json(data);
             
@@ -207,7 +261,7 @@ export default async function handler(req, res) {
             console.error('Video Error:', error);
             return res.status(200).json({
                 code: 200,
-                message: "Success",
+                message: "Success @MR_NoOB",
                 data: [],
                 success: true
             });
@@ -233,16 +287,22 @@ export default async function handler(req, res) {
                 data.data.isVip = true;
                 data.data.is_vip = true;
                 data.data.level = "1";
-                data.data.level_name = "Premium";
+                data.data.level_name = "Premium @MR_NoOB";
                 data.data.score = "99999";
                 data.data.coins = "99999";
                 data.data.vipExpiry = "2099-12-31";
                 data.data.vip_expiry = "2099-12-31";
-                data.data.plan = "Lifetime Premium";
+                data.data.plan = "Lifetime Premium @MR_NoOB";
                 data.data.membership = "premium";
                 data.data.user_type = "premium";
                 data.data.premium = true;
                 data.data.is_premium = true;
+                
+                // Brand name fields
+                if (data.data.name) data.data.name = replaceBranding(data.data.name);
+                if (data.data.display_name) data.data.display_name = replaceBranding(data.data.display_name);
+                if (data.data.username) data.data.username = replaceBranding(data.data.username);
+                if (data.data.nickname) data.data.nickname = replaceBranding(data.data.nickname);
             }
             
             return res.status(200).json(data);
@@ -273,6 +333,11 @@ export default async function handler(req, res) {
                     item.locked = false;
                     item.can_play = true;
                     item.playable = true;
+                    
+                    // Brand title
+                    if (item.title) item.title = replaceBranding(item.title);
+                    if (item.name) item.name = replaceBranding(item.name);
+                    if (item.description) item.description = replaceBranding(item.description);
                 });
             }
             
@@ -294,7 +359,7 @@ export default async function handler(req, res) {
         cleanPath.includes('/ads/')) {
         return res.status(200).json({ 
             code: 200, 
-            message: "SUCCESS", 
+            message: "SUCCESS @MR_NoOB", 
             data: null 
         });
     }
@@ -310,7 +375,7 @@ export default async function handler(req, res) {
         cleanPath.includes('/rent')) {
         return res.status(200).json({
             code: 200,
-            message: "Success",
+            message: "Success @MR_NoOB",
             data: {
                 orderId: "FAKE_" + Date.now(),
                 status: "PAID",
@@ -356,9 +421,9 @@ export default async function handler(req, res) {
         if (contentType.includes('application/json')) {
             let data = await response.json();
             
-            // Unlock any content
+            // Unlock and brand any content
             if (data.data) {
-                const unlock = (item) => {
+                const unlockAndBrand = (item) => {
                     if (!item || typeof item !== 'object') return item;
                     item.vip = 1;
                     item.isVip = true;
@@ -367,17 +432,34 @@ export default async function handler(req, res) {
                     item.locked = false;
                     item.can_play = true;
                     item.playable = true;
-                    if (Array.isArray(item.data)) item.data.forEach(unlock);
-                    else if (item.data && typeof item.data === 'object') unlock(item.data);
+                    
+                    // Brand fields
+                    const brandFields = ['title', 'name', 'video_title', 'movie_title', 'drama_title', 'description', 'desc', 'summary', 'overview', 'synopsis', 'message', 'msg'];
+                    brandFields.forEach(field => {
+                        if (item[field] && typeof item[field] === 'string') {
+                            item[field] = replaceBranding(item[field]);
+                        }
+                    });
+                    
+                    if (Array.isArray(item.data)) item.data.forEach(unlockAndBrand);
+                    else if (item.data && typeof item.data === 'object') unlockAndBrand(item.data);
+                    if (Array.isArray(item.list)) item.list.forEach(unlockAndBrand);
+                    if (Array.isArray(item.items)) item.items.forEach(unlockAndBrand);
+                    if (Array.isArray(item.results)) item.results.forEach(unlockAndBrand);
+                    
                     return item;
                 };
                 
                 if (Array.isArray(data.data)) {
-                    data.data.forEach(unlock);
+                    data.data.forEach(unlockAndBrand);
                 } else {
-                    unlock(data.data);
+                    unlockAndBrand(data.data);
                 }
             }
+            
+            // Brand message fields
+            if (data.message) data.message = replaceBranding(data.message);
+            if (data.msg) data.msg = replaceBranding(data.msg);
             
             return res.status(response.status).json(data);
         } else {
@@ -395,7 +477,7 @@ export default async function handler(req, res) {
         console.error('❌ Proxy Error:', error);
         return res.status(500).json({
             code: 500,
-            message: "Proxy Error: " + error.message
+            message: "Proxy Error @MR_NoOB: " + error.message
         });
     }
 }
