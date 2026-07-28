@@ -1,5 +1,5 @@
 // ==========================================
-// 🎯 DrXmas / Mar-Show PROXY - ULTIMATE TENCLOUD FIX
+// 🎯 DrXmas / Mar-Show PROXY - FINAL WORKING FIX
 // ==========================================
 
 export default async function handler(req, res) {
@@ -51,19 +51,19 @@ export default async function handler(req, res) {
     };
 
     // ==========================================
-    // 🎯 VIDEO PLAYBACK - MAIN FIX
+    // 🎯 VIDEO PLAYBACK - COMPLETE REWRITE
     // ==========================================
     if (cleanPath.includes('/api/video/source') || 
         cleanPath.includes('/api/play/source') ||
         cleanPath.includes('/api/get/play') ||
         cleanPath.includes('/api/source/') ||
         cleanPath.includes('/api/video/play') ||
-        cleanPath.includes('/api/play/video')) {
+        cleanPath.includes('/api/play/video') ||
+        cleanPath.includes('/api/watch/play')) {
         
         try {
+            // Try to get video source from server
             const headers = buildHeaders(req);
-            
-            // First try to get real video source from server
             const response = await fetch(targetBaseUrl + urlPath, {
                 method: method,
                 headers: headers
@@ -73,79 +73,64 @@ export default async function handler(req, res) {
             
             // If we got video data, modify it
             if (data && data.data) {
-                // Force unlock all VIP flags
-                data.data.vip = 1;
-                data.data.isVip = true;
-                data.data.premium = true;
-                data.data.free = true;
-                data.data.locked = false;
-                data.data.can_play = true;
-                data.data.playable = true;
-                data.data.available = true;
-                data.data.drm_enabled = false;
-                data.data.need_auth = false;
-                data.data.auth_required = false;
-                data.data.is_tencent = false;
-                data.data.tencent_play = true;
-                data.data.is_encrypted = false;
-                data.data.encrypted = false;
+                // Complete VIP unlock
+                const videoData = data.data;
                 
-                // Remove any Tencent Cloud auth fields
-                delete data.data.tencent_auth;
-                delete data.data.auth_token;
-                delete data.data.playback_token;
-                delete data.data.drm_key;
-                delete data.data.encryption_key;
-                delete data.data.license_url;
-                delete data.data.certificate;
-                delete data.data.playback_auth;
-                delete data.data.signature;
-                delete data.data.sign;
-                delete data.data.token;
-                delete data.data.auth;
+                // Force all VIP flags
+                videoData.vip = 1;
+                videoData.isVip = true;
+                videoData.is_vip = true;
+                videoData.vip_status = 1;
+                videoData.premium = true;
+                videoData.is_premium = true;
+                videoData.free = true;
+                videoData.is_free = true;
+                videoData.locked = false;
+                videoData.is_locked = false;
+                videoData.can_play = true;
+                videoData.playable = true;
+                videoData.available = true;
+                videoData.status = "active";
+                videoData.price = "0";
+                videoData.rent_price = "0";
+                videoData.buy_price = "0";
+                videoData.drm_enabled = false;
+                videoData.need_auth = false;
+                videoData.auth_required = false;
+                videoData.is_tencent = false;
+                videoData.tencent_play = true;
+                videoData.is_encrypted = false;
+                videoData.encrypted = false;
                 
-                // Fix video URL - remove all query params
-                let videoUrl = data.data.url || data.data.source || data.data.video || data.data.play_url || data.data.stream_url;
+                // Clean video URL
+                let videoUrl = videoData.url || videoData.source || videoData.video || videoData.play_url || videoData.stream_url;
                 
-                if (videoUrl) {
-                    // Remove all query parameters
-                    videoUrl = videoUrl.split('?')[0];
-                    // Convert HTTP to HTTPS
-                    videoUrl = videoUrl.replace('http://', 'https://');
-                    // If still has tencent in URL, try to get clean version
-                    if (videoUrl.includes('tencent')) {
-                        // Try to extract just the base URL without any tencent paths
-                        const urlParts = videoUrl.split('/');
-                        const fileName = urlParts[urlParts.length - 1];
-                        if (fileName.includes('.mp4') || fileName.includes('.m3u8')) {
-                            videoUrl = `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4`;
-                        }
-                    }
-                    
-                    // Set all URL fields to clean URL
-                    data.data.url = videoUrl;
-                    data.data.source = videoUrl;
-                    data.data.video = videoUrl;
-                    data.data.play_url = videoUrl;
-                    data.data.direct_url = videoUrl;
-                    data.data.stream_url = videoUrl;
-                    data.data.hls_url = videoUrl;
-                    data.data.m3u8 = videoUrl;
+                if (videoUrl && !videoUrl.includes('tencent')) {
+                    // Clean URL if not from tencent
+                    videoUrl = videoUrl.split('?')[0].replace('http://', 'https://');
                 } else {
-                    // Fallback video URL
-                    const fallbackUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-                    data.data.url = fallbackUrl;
-                    data.data.source = fallbackUrl;
-                    data.data.video = fallbackUrl;
-                    data.data.play_url = fallbackUrl;
-                    data.data.direct_url = fallbackUrl;
-                    data.data.stream_url = fallbackUrl;
-                    data.data.hls_url = fallbackUrl;
-                    data.data.m3u8 = fallbackUrl;
+                    // Use fallback video
+                    videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
                 }
                 
+                // Set all URL fields
+                videoData.url = videoUrl;
+                videoData.source = videoUrl;
+                videoData.video = videoUrl;
+                videoData.play_url = videoUrl;
+                videoData.direct_url = videoUrl;
+                videoData.stream_url = videoUrl;
+                videoData.hls_url = videoUrl;
+                videoData.m3u8 = videoUrl;
+                videoData.video_url = videoUrl;
+                
+                // Remove all auth/token fields
+                const authFields = ['tencent_auth', 'auth_token', 'playback_token', 'drm_key', 'encryption_key', 
+                                   'license_url', 'certificate', 'playback_auth', 'signature', 'sign', 'token', 'auth'];
+                authFields.forEach(field => delete videoData[field]);
+                
                 // Add branding
-                injectBranding(data.data);
+                injectBranding(videoData);
                 
                 data.success = true;
                 data.code = 200;
@@ -153,7 +138,7 @@ export default async function handler(req, res) {
                 return res.status(200).json(data);
             }
             
-            // If no data, return fallback with all fields
+            // If no data, return fallback
             const fallbackUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
             return res.status(200).json({
                 code: 200,
@@ -167,14 +152,24 @@ export default async function handler(req, res) {
                     stream_url: fallbackUrl,
                     hls_url: fallbackUrl,
                     m3u8: fallbackUrl,
+                    video_url: fallbackUrl,
                     vip: 1,
                     isVip: true,
+                    is_vip: true,
+                    vip_status: 1,
                     premium: true,
+                    is_premium: true,
                     free: true,
+                    is_free: true,
                     locked: false,
+                    is_locked: false,
                     can_play: true,
                     playable: true,
                     available: true,
+                    status: "active",
+                    price: "0",
+                    rent_price: "0",
+                    buy_price: "0",
                     drm_enabled: false,
                     need_auth: false,
                     auth_required: false,
@@ -182,14 +177,15 @@ export default async function handler(req, res) {
                     tencent_play: true,
                     is_encrypted: false,
                     encrypted: false,
-                    status: "active"
+                    title: "Big Buck Bunny | @MR_NoOB",
+                    name: "Big Buck Bunny | @MR_NoOB"
                 },
                 success: true
             });
             
         } catch (error) {
             console.error('Video Source Error:', error);
-            // Return fallback video with all fields
+            // Return fallback video
             const fallbackUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
             return res.status(200).json({
                 code: 200,
@@ -203,14 +199,24 @@ export default async function handler(req, res) {
                     stream_url: fallbackUrl,
                     hls_url: fallbackUrl,
                     m3u8: fallbackUrl,
+                    video_url: fallbackUrl,
                     vip: 1,
                     isVip: true,
+                    is_vip: true,
+                    vip_status: 1,
                     premium: true,
+                    is_premium: true,
                     free: true,
+                    is_free: true,
                     locked: false,
+                    is_locked: false,
                     can_play: true,
                     playable: true,
                     available: true,
+                    status: "active",
+                    price: "0",
+                    rent_price: "0",
+                    buy_price: "0",
                     drm_enabled: false,
                     need_auth: false,
                     auth_required: false,
@@ -218,7 +224,8 @@ export default async function handler(req, res) {
                     tencent_play: true,
                     is_encrypted: false,
                     encrypted: false,
-                    status: "active"
+                    title: "Big Buck Bunny | @MR_NoOB",
+                    name: "Big Buck Bunny | @MR_NoOB"
                 },
                 success: true
             });
@@ -226,14 +233,15 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🎯 TENCLOUD TOKEN/AUTH ENDPOINTS - FAKE SUCCESS
+    // 🎯 TENCLOUD TOKEN/AUTH - FAKE RESPONSE
     // ==========================================
     if (cleanPath.includes('/api/tencent/') || 
         cleanPath.includes('/api/cloud/') ||
         cleanPath.includes('/api/license/') ||
         cleanPath.includes('/api/auth/play') ||
         cleanPath.includes('/api/token/play') ||
-        cleanPath.includes('/api/drm/')) {
+        cleanPath.includes('/api/drm/') ||
+        cleanPath.includes('/api/play/auth')) {
         
         return res.status(200).json({
             code: 200,
@@ -248,7 +256,8 @@ export default async function handler(req, res) {
                 certificate: null,
                 expiry: "2099-12-31",
                 is_tencent: false,
-                tencent_play: true
+                tencent_play: true,
+                can_play: true
             },
             success: true
         });
@@ -308,31 +317,19 @@ export default async function handler(req, res) {
                     item.is_encrypted = false;
                     item.encrypted = false;
                     
-                    // Remove any auth fields
-                    delete item.tencent_auth;
-                    delete item.auth_token;
-                    delete item.playback_token;
-                    delete item.drm_key;
-                    delete item.encryption_key;
-                    delete item.license_url;
-                    delete item.certificate;
-                    delete item.playback_auth;
-                    delete item.signature;
-                    delete item.sign;
-                    delete item.token;
-                    delete item.auth;
+                    // Remove auth fields
+                    const authFields = ['tencent_auth', 'auth_token', 'playback_token', 'drm_key', 'encryption_key', 
+                                       'license_url', 'certificate', 'playback_auth', 'signature', 'sign', 'token', 'auth'];
+                    authFields.forEach(field => delete item[field]);
                     
-                    // Fix any video URLs
-                    ['url', 'source', 'video', 'play_url', 'stream_url', 'hls_url', 'm3u8'].forEach(field => {
+                    // Fix URLs
+                    ['url', 'source', 'video', 'play_url', 'stream_url', 'hls_url', 'm3u8', 'video_url'].forEach(field => {
                         if (item[field] && typeof item[field] === 'string') {
                             let url = item[field];
-                            // Remove all query params
-                            url = url.split('?')[0];
-                            // Convert to HTTPS
-                            url = url.replace('http://', 'https://');
-                            // If tencent URL, use fallback
                             if (url.includes('tencent')) {
                                 url = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+                            } else {
+                                url = url.split('?')[0].replace('http://', 'https://');
                             }
                             item[field] = url;
                         }
@@ -407,7 +404,6 @@ export default async function handler(req, res) {
                 data.data.premium = true;
                 data.data.is_premium = true;
                 
-                // Add branding to profile name
                 if (data.data.name) {
                     data.data.name = data.data.name.replace(/\s*\|\s*@\w+/g, '') + BRAND;
                 }
@@ -525,7 +521,6 @@ export default async function handler(req, res) {
         if (contentType.includes('application/json')) {
             let data = await response.json();
             
-            // Unlock any content
             if (data.data) {
                 const unlock = (item) => {
                     if (!item || typeof item !== 'object') return item;
@@ -542,20 +537,16 @@ export default async function handler(req, res) {
                     item.is_tencent = false;
                     item.tencent_play = true;
                     
-                    // Remove auth fields
-                    delete item.tencent_auth;
-                    delete item.auth_token;
-                    delete item.playback_token;
-                    delete item.drm_key;
-                    delete item.encryption_key;
-                    delete item.license_url;
+                    const authFields = ['tencent_auth', 'auth_token', 'playback_token', 'drm_key', 'encryption_key', 'license_url'];
+                    authFields.forEach(field => delete item[field]);
                     
-                    // Fix URLs
-                    ['url', 'source', 'video', 'play_url', 'stream_url', 'hls_url', 'm3u8'].forEach(field => {
+                    ['url', 'source', 'video', 'play_url', 'stream_url', 'hls_url', 'm3u8', 'video_url'].forEach(field => {
                         if (item[field] && typeof item[field] === 'string') {
-                            let url = item[field].split('?')[0].replace('http://', 'https://');
+                            let url = item[field];
                             if (url.includes('tencent')) {
                                 url = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+                            } else {
+                                url = url.split('?')[0].replace('http://', 'https://');
                             }
                             item[field] = url;
                         }
@@ -600,7 +591,7 @@ export default async function handler(req, res) {
 }
 
 // ==========================================
-// 🛠 BUILD HEADERS - ULTIMATE PREMIUM
+// 🛠 BUILD HEADERS
 // ==========================================
 function buildHeaders(req) {
     const headers = {};
@@ -613,7 +604,7 @@ function buildHeaders(req) {
         });
     }
 
-    // Ultimate premium headers
+    // Premium device headers
     headers['project'] = 'mar-show';
     headers['pkg'] = 'com.marshows';
     headers['device-id'] = 'ca6e0ece0e7e3451';
