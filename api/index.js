@@ -6,7 +6,7 @@ export default async function handler(req, res) {
     let urlPath = req.headers['x-invoke-path'] || req.url;
     const cleanPath = urlPath.split('?')[0];
     const method = req.method;
-    const targetBaseUrl = "https://dramastory.tv/";
+    const targetBaseUrl = "https://www.dramastory.tv/";
 
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
