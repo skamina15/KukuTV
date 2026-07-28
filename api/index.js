@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🎯 BRANDING REPLACE - HAR JAGAH
+    // 🎯 BRANDING REPLACE - SIRF @Az_Mods_Adda -> @MR_NoOB
     // ==========================================
     const replaceBranding = (text) => {
         if (!text || typeof text !== 'string') return text;
@@ -46,78 +46,19 @@ export default async function handler(req, res) {
     };
 
     // ==========================================
-    // 🎯 FORCE UNLOCK FUNCTION - COMPLETE
-    // ==========================================
-    const forceUnlock = (item) => {
-        if (!item || typeof item !== 'object') return item;
-        
-        // Main VIP flags
-        item.vip = 1;
-        item.isVip = true;
-        item.is_vip = true;
-        item.vip_status = 1;
-        item.premium = true;
-        item.is_premium = true;
-        item.free = true;
-        item.is_free = true;
-        item.locked = false;
-        item.is_locked = false;
-        item.can_play = true;
-        item.playable = true;
-        item.available = true;
-        item.status = "active";
-        item.price = "0";
-        item.drm_enabled = false;
-        item.need_auth = false;
-        item.auth_required = false;
-        item.unlocked = true;
-        item.is_unlocked = true;
-        item.has_access = true;
-        item.access = "granted";
-        item.requires_vip = false;
-        item.requires_payment = false;
-        item.paid = true;
-        item.is_paid = true;
-        item.user_type = "premium";
-        item.membership = "premium";
-        item.plan = "Lifetime Premium";
-        item.vipExpiry = "2099-12-31";
-        item.vip_expiry = "2099-12-31";
-        item.level = "1";
-        item.level_name = "Premium";
-        item.score = "99999";
-        item.coins = "99999";
-        
-        // Fix video URLs
-        ['url', 'source', 'video', 'play_url', 'stream_url', 'hls_url', 'm3u8', 'direct_url'].forEach(field => {
-            if (item[field] && typeof item[field] === 'string') {
-                item[field] = item[field].split('?')[0].replace('http://', 'https://');
-            }
-        });
-        
-        // Recursive
-        if (Array.isArray(item.data)) item.data.forEach(forceUnlock);
-        else if (item.data && typeof item.data === 'object') forceUnlock(item.data);
-        if (Array.isArray(item.episodes)) item.episodes.forEach(forceUnlock);
-        if (Array.isArray(item.seasons)) item.seasons.forEach(forceUnlock);
-        if (Array.isArray(item.list)) item.list.forEach(forceUnlock);
-        if (Array.isArray(item.items)) item.items.forEach(forceUnlock);
-        if (Array.isArray(item.results)) item.results.forEach(forceUnlock);
-        
-        return item;
-    };
-
-    // ==========================================
     // 🎯 VIDEO PLAYBACK - MAIN FIX
     // ==========================================
     if (cleanPath.includes('/api/video/source') || 
         cleanPath.includes('/api/play/source') ||
         cleanPath.includes('/api/get/play') ||
         cleanPath.includes('/api/source/') ||
-        cleanPath.includes('/api/video/play') ||
-        cleanPath.includes('/api/play/')) {
+        cleanPath.includes('/api/video/play')) {
         
         try {
+            // Get video ID from URL
+            const videoId = urlPath.split('/').pop().split('?')[0];
+            
+            // First try to get real video source
             const headers = buildHeaders(req);
             const response = await fetch(targetBaseUrl + urlPath, {
                 method: method,
@@ -129,34 +70,54 @@ export default async function handler(req, res) {
             // Brand all strings
             data = brandAllStrings(data);
             
-            // Force unlock - PURE DATA LEVEL PAR BHI
-            forceUnlock(data);
-            
-            // Agar data.data hai toh usko bhi unlock
+            // If we got video data, modify it
             if (data && data.data) {
-                forceUnlock(data.data);
+                // Force unlock
+                data.data.vip = 1;
+                data.data.isVip = true;
+                data.data.premium = true;
+                data.data.free = true;
+                data.data.locked = false;
+                data.data.can_play = true;
+                data.data.playable = true;
+                data.data.available = true;
+                data.data.drm_enabled = false;
+                data.data.need_auth = false;
+                data.data.auth_required = false;
+                
+                // Fix video URL
+                let videoUrl = data.data.url || data.data.source || data.data.video || data.data.play_url;
+                if (videoUrl) {
+                    // Remove Tencent auth params
+                    videoUrl = videoUrl.split('?')[0];
+                    videoUrl = videoUrl.replace('http://', 'https://');
+                    
+                    // Set all URL fields
+                    data.data.url = videoUrl;
+                    data.data.source = videoUrl;
+                    data.data.video = videoUrl;
+                    data.data.play_url = videoUrl;
+                    data.data.direct_url = videoUrl;
+                    data.data.stream_url = videoUrl;
+                } else {
+                    // If no URL found, use fallback
+                    data.data.url = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+                    data.data.source = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+                    data.data.video = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+                    data.data.play_url = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+                    data.data.direct_url = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+                }
+                
+                data.success = true;
+                data.code = 200;
+                
+                return res.status(200).json(data);
             }
             
-            // Success flags
-            data.success = true;
-            data.code = 200;
-            
-            return res.status(200).json(data);
-            
-        } catch (error) {
-            console.error('Video Source Error:', error);
-            // Fallback with full unlock
+            // If no data, return fallback
             return res.status(200).json({
                 code: 200,
                 message: "Success",
-                success: true,
-                vip: 1,
-                isVip: true,
-                premium: true,
-                free: true,
-                locked: false,
-                can_play: true,
-                playable: true,
                 data: {
                     url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
                     source: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
@@ -170,10 +131,33 @@ export default async function handler(req, res) {
                     can_play: true,
                     playable: true,
                     drm_enabled: false,
-                    need_auth: false,
-                    requires_vip: false,
-                    requires_payment: false
-                }
+                    need_auth: false
+                },
+                success: true
+            });
+            
+        } catch (error) {
+            console.error('Video Source Error:', error);
+            // Return fallback video
+            return res.status(200).json({
+                code: 200,
+                message: "Success",
+                data: {
+                    url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                    source: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                    video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                    play_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                    vip: 1,
+                    isVip: true,
+                    premium: true,
+                    free: true,
+                    locked: false,
+                    can_play: true,
+                    playable: true,
+                    drm_enabled: false,
+                    need_auth: false
+                },
+                success: true
             });
         }
     }
@@ -199,11 +183,53 @@ export default async function handler(req, res) {
             // Brand all strings
             data = brandAllStrings(data);
             
-            // Force unlock
-            forceUnlock(data);
-            
+            // Unlock all content
             if (data.data) {
-                forceUnlock(data.data);
+                const unlockAll = (item) => {
+                    if (!item || typeof item !== 'object') return item;
+                    
+                    item.vip = 1;
+                    item.isVip = true;
+                    item.is_vip = true;
+                    item.vip_status = 1;
+                    item.premium = true;
+                    item.is_premium = true;
+                    item.free = true;
+                    item.is_free = true;
+                    item.locked = false;
+                    item.is_locked = false;
+                    item.can_play = true;
+                    item.playable = true;
+                    item.available = true;
+                    item.status = "active";
+                    item.price = "0";
+                    item.drm_enabled = false;
+                    item.need_auth = false;
+                    item.auth_required = false;
+                    
+                    // Fix any video URLs
+                    ['url', 'source', 'video', 'play_url', 'stream_url', 'hls_url', 'm3u8'].forEach(field => {
+                        if (item[field] && typeof item[field] === 'string') {
+                            item[field] = item[field].split('?')[0].replace('http://', 'https://');
+                        }
+                    });
+                    
+                    // Recursive
+                    if (Array.isArray(item.data)) item.data.forEach(unlockAll);
+                    else if (item.data && typeof item.data === 'object') unlockAll(item.data);
+                    if (Array.isArray(item.episodes)) item.episodes.forEach(unlockAll);
+                    if (Array.isArray(item.seasons)) item.seasons.forEach(unlockAll);
+                    if (Array.isArray(item.list)) item.list.forEach(unlockAll);
+                    if (Array.isArray(item.items)) item.items.forEach(unlockAll);
+                    
+                    return item;
+                };
+                
+                if (Array.isArray(data.data)) {
+                    data.data.forEach(unlockAll);
+                } else {
+                    unlockAll(data.data);
+                }
             }
             
             data.code = 200;
@@ -216,15 +242,8 @@ export default async function handler(req, res) {
             return res.status(200).json({
                 code: 200,
                 message: "Success",
-                success: true,
-                vip: 1,
-                isVip: true,
-                premium: true,
-                free: true,
-                locked: false,
-                can_play: true,
-                playable: true,
-                data: []
+                data: [],
+                success: true
             });
         }
     }
@@ -245,11 +264,22 @@ export default async function handler(req, res) {
             // Brand all strings
             data = brandAllStrings(data);
             
-            // Force unlock
-            forceUnlock(data);
-            
             if (data.data) {
-                forceUnlock(data.data);
+                data.data.vip = 1;
+                data.data.vip_status = 1;
+                data.data.isVip = true;
+                data.data.is_vip = true;
+                data.data.level = "1";
+                data.data.level_name = "Premium";
+                data.data.score = "99999";
+                data.data.coins = "99999";
+                data.data.vipExpiry = "2099-12-31";
+                data.data.vip_expiry = "2099-12-31";
+                data.data.plan = "Lifetime Premium";
+                data.data.membership = "premium";
+                data.data.user_type = "premium";
+                data.data.premium = true;
+                data.data.is_premium = true;
             }
             
             return res.status(200).json(data);
@@ -274,11 +304,16 @@ export default async function handler(req, res) {
             // Brand all strings
             data = brandAllStrings(data);
             
-            // Force unlock
-            forceUnlock(data);
-            
             if (data.data && Array.isArray(data.data)) {
-                data.data.forEach(item => forceUnlock(item));
+                data.data.forEach(item => {
+                    item.vip = 1;
+                    item.isVip = true;
+                    item.premium = true;
+                    item.free = true;
+                    item.locked = false;
+                    item.can_play = true;
+                    item.playable = true;
+                });
             }
             
             return res.status(200).json(data);
@@ -300,11 +335,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ 
             code: 200, 
             message: "SUCCESS", 
-            data: null,
-            vip: 1,
-            isVip: true,
-            premium: true,
-            success: true
+            data: null 
         });
     }
 
@@ -320,14 +351,6 @@ export default async function handler(req, res) {
         return res.status(200).json({
             code: 200,
             message: "Success",
-            success: true,
-            vip: 1,
-            isVip: true,
-            premium: true,
-            free: true,
-            locked: false,
-            can_play: true,
-            playable: true,
             data: {
                 orderId: "FAKE_" + Date.now(),
                 status: "PAID",
@@ -336,7 +359,8 @@ export default async function handler(req, res) {
                 paid: true,
                 unlocked: true,
                 premium: true
-            }
+            },
+            success: true
         });
     }
 
@@ -375,11 +399,27 @@ export default async function handler(req, res) {
             // Brand all strings
             data = brandAllStrings(data);
             
-            // Force unlock
-            forceUnlock(data);
-            
+            // Unlock any content
             if (data.data) {
-                forceUnlock(data.data);
+                const unlock = (item) => {
+                    if (!item || typeof item !== 'object') return item;
+                    item.vip = 1;
+                    item.isVip = true;
+                    item.premium = true;
+                    item.free = true;
+                    item.locked = false;
+                    item.can_play = true;
+                    item.playable = true;
+                    if (Array.isArray(item.data)) item.data.forEach(unlock);
+                    else if (item.data && typeof item.data === 'object') unlock(item.data);
+                    return item;
+                };
+                
+                if (Array.isArray(data.data)) {
+                    data.data.forEach(unlock);
+                } else {
+                    unlock(data.data);
+                }
             }
             
             return res.status(response.status).json(data);
@@ -398,11 +438,7 @@ export default async function handler(req, res) {
         console.error('❌ Proxy Error:', error);
         return res.status(500).json({
             code: 500,
-            message: "Proxy Error: " + error.message,
-            vip: 1,
-            isVip: true,
-            premium: true,
-            success: false
+            message: "Proxy Error: " + error.message
         });
     }
 }
@@ -440,9 +476,6 @@ function buildHeaders(req) {
     headers['x-vip-token'] = 'LIFETIME_PREMIUM_2026';
     headers['x-playback-mode'] = 'direct';
     headers['x-drm-bypass'] = 'true';
-    headers['x-vip-status'] = '1';
-    headers['x-user-type'] = 'premium';
-    headers['x-premium'] = 'true';
     
     return headers;
 }
