@@ -1,6 +1,6 @@
 // ==========================================
 // 🎯 KUKU FM PROXY (BAD BOY EDITION)
-// 🔥 FORCE PROXY PREMIUM ACCOUNT - IGNORE USER LOGIN
+// 🔥 FIXED - PROXY ACCOUNT LOGIN
 // ==========================================
 
 export default async function handler(req, res) {
@@ -17,12 +17,10 @@ export default async function handler(req, res) {
         // 🔥 PREMIUM TOKEN
         authorization: "jwt eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozNzQ5ODA0ODMsImV4cCI6MTc4NTMyMDc0MSwic3ViX3Byb2ZpbGVfaWQiOjQ5NDQ4MzE1LCJ1bmlxdWVfaWQiOiI3MDQ3YmJhYS1kZWRiLTQ2N2MtYTVmZC1hY2I1ZjRhMjg2MWIifQ.QZ97fL0LNPULpYs4WcUYbWBC3tY6astiSpmP8yBHYwfFD2Ay9EOy6ydiTCCME7PxgCTstfsb-nPGtdrSSg8E-A",
         
-        // 🔥 PROXY ACCOUNT DETAILS
-        user_id: 374980483,
-        sub_profile_id: 49448315,
+        user_id: "374980483",
+        sub_profile_id: "49448315",
         unique_id: "7047bbaa-dedb-467c-a5fd-acb5f4a2861b",
         
-        // 🔥 DEVICE DETAILS
         device_id: "61304354-728a-4058-8586-4607eefa339e",
         android_id: "690fc583b739834",
         advertising_id: "61304354-728a-4058-8586-4607eefa339e",
@@ -78,80 +76,99 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔥 GET PROXY ACCOUNT RESPONSE
+    // 🔥 GET PROXY ACCOUNT SESSION RESPONSE
     // ==========================================
-    function getProxyAccountResponse() {
+    function getProxySessionResponse() {
         const now = new Date().toISOString();
+        const accessToken = PROXY_ACCOUNT.authorization.replace('jwt ', '');
         
         return {
             code: 200,
             success: true,
-            message: "Login successful [ BAD BOY ]",
             status: "success",
+            message: "Login successful [ BAD BOY ]",
             
-            // 🔥 THIS IS THE PROXY'S PREMIUM ACCOUNT
+            // 🔥 IMPORTANT: Session token must be in this format
+            access_token: accessToken,
+            refresh_token: accessToken,
+            token_type: "Bearer",
+            expires_in: 86400,
+            
+            // 🔥 USER DATA - Must be complete
             user: {
-                id: PROXY_ACCOUNT.user_id,
-                name: "BAD BOY Premium [ BAD BOY ]",
+                id: parseInt(PROXY_ACCOUNT.user_id),
+                user_id: parseInt(PROXY_ACCOUNT.user_id),
+                name: "BAD BOY Premium",
                 email: "badboy@premium.com",
                 phone: "+918918753244",
+                phone_number: "+918918753244",
+                country_code: "+91",
+                is_phone_verified: true,
+                is_email_verified: false,
+                
+                // 🔥 PREMIUM FLAGS - CRITICAL
                 has_premium: true,
                 is_user_anonymous: false,
                 is_free_trial_period: true,
                 is_existing_subscriber: true,
                 is_subscription_active: true,
+                subscription_status: "active",
                 subscription_type: "lifetime",
                 plan_name: "Lifetime Premium [ BAD BOY ]",
                 valid_till: "2099-12-31",
-                created_at: now,
-                updated_at: now,
                 
+                // 🔥 PROFILE
                 profile: {
-                    id: PROXY_ACCOUNT.sub_profile_id,
-                    name: "BAD BOY Premium [ BAD BOY ]",
-                    bio: "🔥 Premium User [ BAD BOY ]",
+                    id: parseInt(PROXY_ACCOUNT.sub_profile_id),
+                    user_id: parseInt(PROXY_ACCOUNT.user_id),
+                    name: "BAD BOY Premium",
+                    bio: "🔥 Premium User",
                     profile_pic: "https://i.pravatar.cc/300",
                     unique_id: PROXY_ACCOUNT.unique_id,
-                    is_verified: true
+                    is_verified: true,
+                    is_active: true
                 },
                 
+                // 🔥 SUBSCRIPTIONS
                 user_subscriptions: [{
                     id: "sub_" + Date.now(),
                     subscription_id: "BB_" + Date.now(),
+                    user_id: parseInt(PROXY_ACCOUNT.user_id),
                     status: "Active",
-                    valid_from: now,
-                    valid_till: "2099-12-31T23:59:59Z",
                     plan_name: "Lifetime Premium [ BAD BOY ]",
-                    is_recurring: false,
                     plan_amount: 0,
                     currency: "INR",
+                    valid_from: now,
+                    valid_till: "2099-12-31T23:59:59Z",
+                    is_recurring: false,
                     is_active: true,
-                    is_trial: false
+                    is_trial: false,
+                    payment_status: "paid"
                 }],
                 
+                // 🔥 PREFERENCES
                 preferences: {
                     language: "english",
                     country: "IN",
                     notifications: true,
                     dark_mode: false
-                }
-            },
-            
-            // 🔥 PROXY TOKENS
-            access_token: PROXY_ACCOUNT.authorization.replace('jwt ', ''),
-            refresh_token: PROXY_ACCOUNT.authorization.replace('jwt ', ''),
-            token_type: "Bearer",
-            expires_in: 3600,
-            refresh_expires_in: 86400
+                },
+                
+                // 🔥 ADDITIONAL FIELDS
+                created_at: now,
+                updated_at: now,
+                last_login: now,
+                is_active: true,
+                is_blocked: false
+            }
         };
     }
 
     // ==========================================
-    // 🔥 SEND OTP - FORWARD BUT IGNORE RESPONSE
+    // 🔥 SEND OTP
     // ==========================================
     if (urlPath.includes('/api/v1.0/users/auth/send-otp/')) {
         try {
-            // Just forward the request, but we don't care about response
             const headers = { ...req.headers };
             delete headers['accept-encoding'];
             delete headers['content-length'];
@@ -172,7 +189,6 @@ export default async function handler(req, res) {
             
             return res.status(response.status).json(data);
         } catch (error) {
-            // Even if OTP send fails, return success
             return res.status(200).json({
                 message: "OTP sent successfully",
                 phone_number: "+918918753244",
@@ -184,54 +200,52 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔥 VERIFY OTP - IGNORE USER, RETURN PROXY ACCOUNT
+    // 🔥 VERIFY OTP - RETURN PROXY ACCOUNT
     // ==========================================
     if (urlPath.includes('/api/v1.0/users/auth/verify-otp/')) {
         try {
-            // Forward to real API but we don't care about result
-            const headers = { ...req.headers };
-            delete headers['accept-encoding'];
-            delete headers['content-length'];
-            delete headers['host'];
-
-            const fetchOptions = {
-                method: 'POST',
-                headers: headers,
-                timeout: 30000,
-            };
-
-            if (req.body) {
-                fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-            }
-
             // Try to verify, but ignore result
             try {
+                const headers = { ...req.headers };
+                delete headers['accept-encoding'];
+                delete headers['content-length'];
+                delete headers['host'];
+
+                const fetchOptions = {
+                    method: 'POST',
+                    headers: headers,
+                    timeout: 30000,
+                };
+
+                if (req.body) {
+                    fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+                }
+
                 await fetch(targetBaseUrl + urlPath, fetchOptions);
             } catch(e) {
                 // Ignore errors
             }
 
-            // 🔥 ALWAYS RETURN PROXY ACCOUNT (NOT USER'S ACCOUNT)
-            console.log('✅ Returning PROXY premium account');
-            const proxyResponse = getProxyAccountResponse();
+            // 🔥 ALWAYS RETURN PROXY ACCOUNT
+            console.log('✅ Returning PROXY account after OTP');
+            const proxyResponse = getProxySessionResponse();
             injectBadBoyBranding(proxyResponse);
             return res.status(200).json(proxyResponse);
             
         } catch (error) {
-            // Even on error, return proxy account
-            console.log('⚠️ Error, returning PROXY account');
-            const proxyResponse = getProxyAccountResponse();
+            console.log('⚠️ OTP verify error, returning PROXY account');
+            const proxyResponse = getProxySessionResponse();
             injectBadBoyBranding(proxyResponse);
             return res.status(200).json(proxyResponse);
         }
     }
 
     // ==========================================
-    // 🔥 SESSION TOKEN - ALWAYS RETURN PROXY ACCOUNT
+    // 🔥 SESSION TOKEN - MAIN FIX
     // ==========================================
     if (urlPath.includes('/api/v1.1/users/get-session-token/')) {
         try {
-            // Forward with proxy headers but we don't care
+            // Forward to real API with proxy headers
             const headers = buildProxyHeaders();
             delete headers['accept-encoding'];
             delete headers['content-length'];
@@ -247,29 +261,61 @@ export default async function handler(req, res) {
                 fetchOptions.body = typeof req.body === 'string' ? req.body : new URLSearchParams(req.body).toString();
             }
 
-            // Try to get session, but ignore result
+            // Try real API
             try {
-                await fetch(targetBaseUrl + urlPath, fetchOptions);
+                const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
+                if (response.status === 200) {
+                    const data = await response.json();
+                    
+                    // If we got data, inject proxy account
+                    if (data && data.user) {
+                        data.user.id = parseInt(PROXY_ACCOUNT.user_id);
+                        data.user.user_id = parseInt(PROXY_ACCOUNT.user_id);
+                        data.user.has_premium = true;
+                        data.user.is_user_anonymous = false;
+                        data.user.is_free_trial_period = true;
+                        data.user.is_existing_subscriber = true;
+                        data.user.is_subscription_active = true;
+                        
+                        if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
+                            data.user.user_subscriptions = [{
+                                status: "Active",
+                                valid_till: "2099-12-31",
+                                plan_name: "Lifetime [ BAD BOY ] Premium",
+                                is_recurring: false,
+                                plan_amount: 0
+                            }];
+                        }
+                        
+                        data.access_token = PROXY_ACCOUNT.authorization.replace('jwt ', '');
+                        data.refresh_token = PROXY_ACCOUNT.authorization.replace('jwt ', '');
+                        data.code = 200;
+                        data.success = true;
+                        
+                        injectBadBoyBranding(data);
+                        return res.status(200).json(data);
+                    }
+                }
             } catch(e) {
-                // Ignore errors
+                console.log('⚠️ Session API error, using mock');
             }
 
-            // 🔥 ALWAYS RETURN PROXY ACCOUNT
+            // 🔥 RETURN COMPLETE PROXY SESSION
             console.log('✅ Returning PROXY session');
-            const proxyResponse = getProxyAccountResponse();
+            const proxyResponse = getProxySessionResponse();
             injectBadBoyBranding(proxyResponse);
             return res.status(200).json(proxyResponse);
             
         } catch (error) {
             console.log('⚠️ Session error, returning PROXY account');
-            const proxyResponse = getProxyAccountResponse();
+            const proxyResponse = getProxySessionResponse();
             injectBadBoyBranding(proxyResponse);
             return res.status(200).json(proxyResponse);
         }
     }
 
     // ==========================================
-    // 🔥 MASTER CONFIG - FORCE PROXY ACCOUNT
+    // 🔥 MASTER CONFIG
     // ==========================================
     if (urlPath.includes('/api/v1.0/config/master/android/')) {
         try {
@@ -280,28 +326,22 @@ export default async function handler(req, res) {
             });
             let data = await response.json();
 
-            // 🔥 FORCE PROXY ACCOUNT IN CONFIG
             if (data.user_data) {
                 data.user_data.has_premium = true;
                 data.user_data.is_anonymous = false;
                 data.user_data.is_existing_subscriber = true;
-                data.user_data.user_id = PROXY_ACCOUNT.user_id;
+                data.user_data.user_id = parseInt(PROXY_ACCOUNT.user_id);
                 
                 if (data.user_data.user) {
-                    data.user_data.user.id = PROXY_ACCOUNT.user_id;
+                    data.user_data.user.id = parseInt(PROXY_ACCOUNT.user_id);
+                    data.user_data.user.user_id = parseInt(PROXY_ACCOUNT.user_id);
                     data.user_data.user.has_premium = true;
                     data.user_data.user.is_free_trial_period = true;
                     data.user_data.user.is_existing_subscriber = true;
+                    data.user_data.user.is_subscription_active = true;
                     
-                    if (data.user_data.user.user_subscriptions && 
-                        data.user_data.user.user_subscriptions.length > 0) {
-                        data.user_data.user.user_subscriptions.forEach(sub => {
-                            sub.status = "Active";
-                            sub.valid_till = "2099-12-31";
-                            sub.plan_name = "Lifetime [ BAD BOY ] Premium";
-                            sub.is_recurring = false;
-                        });
-                    } else {
+                    if (!data.user_data.user.user_subscriptions || 
+                        data.user_data.user.user_subscriptions.length === 0) {
                         data.user_data.user.user_subscriptions = [{
                             status: "Active",
                             valid_till: "2099-12-31",
@@ -317,17 +357,19 @@ export default async function handler(req, res) {
             return res.status(200).json(data);
             
         } catch (error) {
-            // Return proxy config on error
             return res.status(200).json({
                 user_data: {
                     has_premium: true,
                     is_anonymous: false,
                     is_existing_subscriber: true,
-                    user_id: PROXY_ACCOUNT.user_id,
+                    user_id: parseInt(PROXY_ACCOUNT.user_id),
                     user: {
-                        id: PROXY_ACCOUNT.user_id,
+                        id: parseInt(PROXY_ACCOUNT.user_id),
+                        user_id: parseInt(PROXY_ACCOUNT.user_id),
                         has_premium: true,
                         is_free_trial_period: true,
+                        is_existing_subscriber: true,
+                        is_subscription_active: true,
                         user_subscriptions: [{
                             status: "Active",
                             valid_till: "2099-12-31",
@@ -342,7 +384,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🏠 HOME / SEARCH - USE PROXY HEADERS
+    // 🏠 HOME / SEARCH
     // ==========================================
     if (urlPath.includes('/api/v3/home/') || urlPath.includes('/api/v2/home/') || 
         urlPath.includes('/api/v1.0/show/') || urlPath.includes('/category/') ||
@@ -367,7 +409,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔓 UNLOCK / PAYMENT - ALWAYS SUCCESS
+    // 🔓 UNLOCK / PAYMENT
     // ==========================================
     if (urlPath.includes('/unlock') || urlPath.includes('/order') || 
         urlPath.includes('/pay') || urlPath.includes('/payment') || 
@@ -386,7 +428,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 📊 ANALYTICS / TRACKING BLOCK
+    // 📊 ANALYTICS / TRACKING
     // ==========================================
     if (urlPath.includes('/events/') || urlPath.includes('web-events')) {
         return res.status(201).json({ message: "Event created successfully", success: true });
@@ -405,7 +447,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 📱 OTPLESS HANDLER
+    // 📱 OTPLESS
     // ==========================================
     if (urlPath.includes('otpless') || urlPath.includes('user-auth.otpless.app')) {
         try {
@@ -433,7 +475,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔥 FIREBASE HANDLER
+    // 🔥 FIREBASE
     // ==========================================
     if (urlPath.includes('firebase') || urlPath.includes('googleapis.com')) {
         try {
@@ -458,10 +500,9 @@ export default async function handler(req, res) {
             try {
                 const jsonData = JSON.parse(data);
                 if (jsonData && jsonData.idToken) {
-                    // 🔥 REPLACE WITH PROXY TOKEN
                     jsonData.idToken = PROXY_ACCOUNT.authorization.replace('jwt ', '');
                     jsonData.refreshToken = PROXY_ACCOUNT.authorization.replace('jwt ', '');
-                    jsonData.localId = String(PROXY_ACCOUNT.user_id);
+                    jsonData.localId = PROXY_ACCOUNT.user_id;
                     return res.status(200).json(jsonData);
                 }
             } catch(e) {}
@@ -472,13 +513,13 @@ export default async function handler(req, res) {
                 kind: "identitytoolkit#VerifyCustomTokenResponse", 
                 registered: true,
                 idToken: PROXY_ACCOUNT.authorization.replace('jwt ', ''),
-                localId: String(PROXY_ACCOUNT.user_id)
+                localId: PROXY_ACCOUNT.user_id
             });
         }
     }
 
     // ==========================================
-    // ☁️ CLOUDFRONT HANDLER
+    // ☁️ CLOUDFRONT
     // ==========================================
     if (urlPath.includes('cloudfront.net')) {
         try {
@@ -494,29 +535,24 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🏠 ROOT PATH
+    // 🏠 ROOT
     // ==========================================
     if (urlPath === '/' || urlPath === '') {
         return res.status(200).json({
             status: "🔥 Proxy Running",
             brand: "BAD BOY EDITION",
-            message: "🔴 ANY USER LOGIN → PROXY PREMIUM ACCOUNT",
+            message: "🔴 PROXY ACCOUNT LOGIN FIXED",
             proxy_account: {
                 user_id: PROXY_ACCOUNT.user_id,
                 name: "BAD BOY Premium",
                 plan: "Lifetime Premium",
                 valid_till: "2099-12-31"
-            },
-            endpoints: {
-                send_otp: "POST /api/v1.0/users/auth/send-otp/",
-                verify_otp: "POST /api/v1.0/users/auth/verify-otp/",
-                session: "POST /api/v1.1/users/get-session-token/"
             }
         });
     }
 
     // ==========================================
-    // 🔄 ALL OTHER REQUESTS - USE PROXY HEADERS
+    // 🔄 ALL OTHER REQUESTS
     // ==========================================
     try {
         const headers = buildProxyHeaders();
@@ -540,13 +576,14 @@ export default async function handler(req, res) {
         if (contentType.includes('application/json')) {
             let data = await response.json();
             
-            // 🔥 FORCE PROXY ACCOUNT IN ALL RESPONSES
             if (data.user) {
-                data.user.id = PROXY_ACCOUNT.user_id;
+                data.user.id = parseInt(PROXY_ACCOUNT.user_id);
+                data.user.user_id = parseInt(PROXY_ACCOUNT.user_id);
                 data.user.has_premium = true;
                 data.user.is_user_anonymous = false;
                 data.user.is_free_trial_period = true;
                 data.user.is_existing_subscriber = true;
+                data.user.is_subscription_active = true;
                 
                 if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
                     data.user.user_subscriptions = [{
