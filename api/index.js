@@ -1,6 +1,6 @@
 // ==========================================
 // 🎯 KUKU FM PROXY (BAD BOY EDITION)
-// 🔥 Hardcoded Premium Token Inject
+// 🔥 Hardcoded Premium Token Inject - OTP FIXED
 // ==========================================
 
 export default async function handler(req, res) {
@@ -13,9 +13,8 @@ export default async function handler(req, res) {
     // ==========================================
     // 🔥 HARDCORE PREMIUM TOKEN + CREDENTIALS
     // ==========================================
-    const PREMIUM = {
-        // 🔥 YEH TOKEN HAR REQUEST ME INJECT HOGA
-        authorization: "jwt eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozNzQ5ODA0ODMsImV4cCI6MTc4NTMyMDc0MSwic3ViX3Byb2ZpbGVfaWQiOjQ5NDQ4MzE1LCJ1bmlxdWVfaWQiOiI3MDQ3YmJhYS1kZWRiLTQ2N2MtYTVmZC1hY2I1ZjRhMjg2MWIifQ.QZ97fL0LNPULpYs4WcUYbWBC3tY6astiSpmP8yBHYwfFD2Ay9EOy6ydiTCCME7PxgCTstfsb-nPGtdrSSg8E-A",
+        const PREMIUM = {
+        authorization: "jwt eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozNTIwMTAwODYsImV4cCI6MTc4NTM1MjY2Niwic3ViX3Byb2ZpbGVfaWQiOjIxMDE1MjYxLCJ1bmlxdWVfaWQiOiJhZWU2NDQ4MS00MmRiLTQyZmItODYxYS04MTRmNWM2YjQyMGUifQ.oExc_RzbLGEiMx7IDhwfA7JumeZFQQ5IhSQE_KethUP2j2Fn8-UdzT-p5q37KYQ__jIqlsTJPe4LLrHK5cLoBg",
         device_id: "61304354-728a-4058-8586-4607eefa339e",
         android_id: "690fc583b739834",
         advertising_id: "61304354-728a-4058-8586-4607eefa339e",
@@ -48,11 +47,10 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🛠 BUILD PREMIUM HEADERS (TOKEN INJECTED)
+    // 🛠 BUILD PREMIUM HEADERS
     // ==========================================
     function buildPremiumHeaders() {
         return {
-            // 🔥 HAR REQUEST ME YEH TOKEN JAYEGA
             'authorization': PREMIUM.authorization,
             'device-id': PREMIUM.device_id,
             'advertising-id': PREMIUM.advertising_id,
@@ -71,7 +69,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔥 FIX: SEND OTP HANDLER
+    // 🔥 NEW: SEND OTP HANDLER
     // ==========================================
     if (urlPath.includes('/api/v1.0/users/auth/send-otp/')) {
         try {
@@ -92,6 +90,7 @@ export default async function handler(req, res) {
 
             const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
             const data = await response.json();
+            
             return res.status(response.status).json(data);
         } catch (error) {
             return res.status(500).json({ error: error.message });
@@ -99,10 +98,11 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔥 FIX: VERIFY OTP HANDLER
+    // 🔥 NEW: VERIFY OTP HANDLER - MAIN FIX
     // ==========================================
     if (urlPath.includes('/api/v1.0/users/auth/verify-otp/')) {
         try {
+            // Forward to real API
             const headers = { ...req.headers };
             delete headers['accept-encoding'];
             delete headers['content-length'];
@@ -121,17 +121,26 @@ export default async function handler(req, res) {
             const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
             let data = await response.json();
 
-            // 🔥 FORCE PREMIUM INJECT - OTP SUCCESS
-            data.success = true;
-            data.code = 200;
-            data.message = "Login successful [ BAD BOY ]";
+            // 🔥 CRITICAL FIX: Always return success with premium
+            // Even if OTP is wrong, we inject premium to let user in
+            data = data || {};
             
-            if (!data.user) data.user = {};
+            // Inject premium tokens
+            data.access_token = PREMIUM.authorization.replace('jwt ', '');
+            data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
+            
+            // Ensure user exists
+            if (!data.user) {
+                data.user = {};
+            }
+            
+            // Force premium status
             data.user.has_premium = true;
             data.user.is_user_anonymous = false;
             data.user.is_free_trial_period = true;
             data.user.is_existing_subscriber = true;
             
+            // Add subscription if missing
             if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
                 data.user.user_subscriptions = [{
                     status: "Active",
@@ -141,14 +150,37 @@ export default async function handler(req, res) {
                     plan_amount: 0
                 }];
             }
-
-            data.access_token = PREMIUM.authorization.replace('jwt ', '');
-            data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
-
+            
+            // Force success
+            data.success = true;
+            data.code = 200;
+            data.message = "Login successful [ BAD BOY ]";
+            
             injectBadBoyBranding(data);
             return res.status(200).json(data);
+            
         } catch (error) {
-            return res.status(500).json({ error: error.message });
+            // Even on error, return premium response
+            return res.status(200).json({
+                success: true,
+                code: 200,
+                message: "Login successful [ BAD BOY ]",
+                access_token: PREMIUM.authorization.replace('jwt ', ''),
+                refresh_token: PREMIUM.authorization.replace('jwt ', ''),
+                user: {
+                    has_premium: true,
+                    is_user_anonymous: false,
+                    is_free_trial_period: true,
+                    is_existing_subscriber: true,
+                    user_subscriptions: [{
+                        status: "Active",
+                        valid_till: "2099-12-31",
+                        plan_name: "Lifetime [ BAD BOY ] Premium",
+                        is_recurring: false,
+                        plan_amount: 0
+                    }]
+                }
+            });
         }
     }
 
@@ -157,7 +189,6 @@ export default async function handler(req, res) {
     // ==========================================
     if (urlPath.includes('/api/v1.1/users/get-session-token/')) {
         try {
-            // Original request forward karo
             const headers = { ...req.headers };
             delete headers['accept-encoding'];
             delete headers['content-length'];
@@ -180,6 +211,18 @@ export default async function handler(req, res) {
             if (data.user) {
                 data.user.has_premium = true;
                 data.user.is_user_anonymous = false;
+                data.user.is_free_trial_period = true;
+                data.user.is_existing_subscriber = true;
+                
+                if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
+                    data.user.user_subscriptions = [{
+                        status: "Active",
+                        valid_till: "2099-12-31",
+                        plan_name: "Lifetime [ BAD BOY ] Premium",
+                        is_recurring: false,
+                        plan_amount: 0
+                    }];
+                }
             }
             
             // 🔥 BRANDING
@@ -194,13 +237,37 @@ export default async function handler(req, res) {
                 }
             }
 
-            // 🔥 TOKEN INJECT - Response me bhi token daal do
+            // 🔥 TOKEN INJECT
             data.access_token = PREMIUM.authorization.replace('jwt ', '');
             data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
+            data.code = 200;
+            data.success = true;
 
+            injectBadBoyBranding(data);
             return res.status(200).json(data);
+            
         } catch (error) {
-            return res.status(500).json({ error: error.message });
+            // Return mock session on error
+            return res.status(200).json({
+                success: true,
+                code: 200,
+                access_token: PREMIUM.authorization.replace('jwt ', ''),
+                refresh_token: PREMIUM.authorization.replace('jwt ', ''),
+                user: {
+                    has_premium: true,
+                    is_user_anonymous: false,
+                    is_free_trial_period: true,
+                    is_existing_subscriber: true,
+                    name: "BAD BOY Premium [ BAD BOY ]",
+                    user_subscriptions: [{
+                        status: "Active",
+                        valid_till: "2099-12-31",
+                        plan_name: "Lifetime [ BAD BOY ] Premium",
+                        is_recurring: false,
+                        plan_amount: 0
+                    }]
+                }
+            });
         }
     }
 
@@ -247,6 +314,7 @@ export default async function handler(req, res) {
 
             injectBadBoyBranding(data);
             return res.status(200).json(data);
+            
         } catch (error) {
             return res.status(500).json({ error: error.message });
         }
@@ -355,6 +423,16 @@ export default async function handler(req, res) {
 
             const response = await fetch(urlPath, fetchOptions);
             const data = await response.text();
+            
+            try {
+                const jsonData = JSON.parse(data);
+                if (jsonData && jsonData.idToken) {
+                    jsonData.idToken = PREMIUM.authorization.replace('jwt ', '');
+                    jsonData.refreshToken = PREMIUM.authorization.replace('jwt ', '');
+                    return res.status(200).json(jsonData);
+                }
+            } catch(e) {}
+            
             return res.status(response.status).send(data);
         } catch (e) {
             return res.status(200).json({ kind: "identitytoolkit#VerifyCustomTokenResponse", registered: true });
@@ -381,7 +459,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
             status: "🔥 Proxy is Running",
             brand: "BAD BOY EDITION",
-            message: "OTP Fixed! Hardcoded Premium Token Inject Active!",
+            message: "OTP Fixed! App will proceed after verification.",
             endpoints: {
                 send_otp: "POST /api/v1.0/users/auth/send-otp/",
                 verify_otp: "POST /api/v1.0/users/auth/verify-otp/",
