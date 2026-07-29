@@ -1,6 +1,6 @@
 // ==========================================
 // 🎯 KUKU FM PROXY (BAD BOY EDITION) 
-// 🔥 FULLY FIXED OTP LOGIN
+// 🔥 OTP LOGIN FINALLY FIXED
 // ==========================================
 
 export default async function handler(req, res) {
@@ -69,48 +69,95 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔥 OTP-LESS LOGIN HANDLER - FIXED
+    // 🔥 OTP-LESS INITIATE - SEND OTP
     // ==========================================
-    if (urlPath.includes('/api/v1.0/users/otp-less/')) {
+    if (urlPath.includes('/api/v1.0/users/otp-less/') && method === 'POST') {
         try {
-            console.log('🔥 OTP-LESS LOGIN REQUEST RECEIVED');
+            console.log('📱 OTP INITIATE REQUEST');
             
-            // Forward original request
+            // Parse body properly
+            let body;
+            if (req.body) {
+                body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+            }
+            
+            console.log('📤 Body:', body);
+
             const headers = { ...req.headers };
             delete headers['accept-encoding'];
             delete headers['content-length'];
             delete headers['host'];
 
             const fetchOptions = {
-                method: method,
+                method: 'POST',
                 headers: headers,
+                body: body,
                 timeout: 30000,
             };
 
+            const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
+            const data = await response.json();
+            
+            console.log('📥 Response:', JSON.stringify(data, null, 2));
+
+            // Just forward the response without modification
+            // This is just for sending OTP
+            return res.status(response.status).json(data);
+            
+        } catch (error) {
+            console.error('❌ OTP Initiate Error:', error);
+            return res.status(500).json({ 
+                error: error.message,
+                code: 500,
+                message: "Failed to send OTP"
+            });
+        }
+    }
+
+    // ==========================================
+    // 🔥 OTP VERIFICATION - VERIFY OTP
+    // ==========================================
+    if (urlPath.includes('/api/v1.0/users/otp-less/') && method === 'PUT') {
+        try {
+            console.log('🔐 OTP VERIFICATION REQUEST');
+            
+            let body;
             if (req.body) {
-                fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-                console.log('📤 OTP Request Body:', fetchOptions.body);
+                body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
             }
+            
+            console.log('📤 OTP Body:', body);
+
+            const headers = { ...req.headers };
+            delete headers['accept-encoding'];
+            delete headers['content-length'];
+            delete headers['host'];
+
+            const fetchOptions = {
+                method: 'PUT',
+                headers: headers,
+                body: body,
+                timeout: 30000,
+            };
 
             const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
             let data = await response.json();
             
-            console.log('📥 OTP Response:', JSON.stringify(data, null, 2));
+            console.log('📥 OTP Verification Response:', JSON.stringify(data, null, 2));
 
-            // 🔥 INJECT PREMIUM TOKEN AND USER DATA
-            if (data) {
+            // 🔥 INJECT PREMIUM AFTER SUCCESSFUL VERIFICATION
+            if (data && data.success !== false) {
                 // Inject tokens
                 data.access_token = PREMIUM.authorization.replace('jwt ', '');
                 data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
                 
-                // If user exists, mark as premium
+                // Mark as premium
                 if (data.user) {
                     data.user.has_premium = true;
                     data.user.is_user_anonymous = false;
                     data.user.is_free_trial_period = true;
                     data.user.is_existing_subscriber = true;
                     
-                    // Add subscription if missing
                     if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
                         data.user.user_subscriptions = [{
                             status: "Active",
@@ -122,41 +169,52 @@ export default async function handler(req, res) {
                         }];
                     }
                 }
+                
+                // Make sure success is true
+                data.success = true;
+                data.code = 200;
+                data.message = "Login successful [BAD BOY]";
+                
+                injectBadBoyBranding(data);
+                return res.status(200).json(data);
+            } else {
+                // If verification failed, return actual error
+                return res.status(response.status).json(data);
             }
-
-            injectBadBoyBranding(data);
-            return res.status(200).json(data);
             
         } catch (error) {
-            console.error('❌ OTP-LESS Error:', error);
+            console.error('❌ OTP Verification Error:', error);
             return res.status(500).json({ 
                 error: error.message,
-                code: 500
+                code: 500,
+                message: "OTP verification failed"
             });
         }
     }
 
     // ==========================================
-    // 🔥 GET SESSION TOKEN - FIXED
+    // 🔥 GET SESSION TOKEN
     // ==========================================
     if (urlPath.includes('/api/v1.1/users/get-session-token/')) {
         try {
-            console.log('🔥 SESSION TOKEN REQUEST RECEIVED');
+            console.log('🎫 SESSION TOKEN REQUEST');
             
             const headers = { ...req.headers };
             delete headers['accept-encoding'];
             delete headers['content-length'];
             delete headers['host'];
 
+            let body;
+            if (method !== 'GET' && method !== 'HEAD' && req.body) {
+                body = typeof req.body === 'string' ? req.body : new URLSearchParams(req.body).toString();
+            }
+
             const fetchOptions = {
                 method: method,
                 headers: headers,
+                body: body,
                 timeout: 30000,
             };
-
-            if (method !== 'GET' && method !== 'HEAD' && req.body) {
-                fetchOptions.body = typeof req.body === 'string' ? req.body : new URLSearchParams(req.body).toString();
-            }
 
             const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
             let data = await response.json();
@@ -180,9 +238,10 @@ export default async function handler(req, res) {
                 }
             }
             
-            // Inject tokens
             data.access_token = PREMIUM.authorization.replace('jwt ', '');
             data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
+            data.code = 200;
+            data.success = true;
 
             injectBadBoyBranding(data);
             return res.status(200).json(data);
@@ -194,16 +253,17 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔥 MASTER CONFIG - PREMIUM SPOOF
+    // 🔥 MASTER CONFIG
     // ==========================================
     if (urlPath.includes('/api/v1.0/config/master/android/')) {
         try {
-            console.log('🔥 MASTER CONFIG REQUEST');
+            console.log('⚙️ MASTER CONFIG REQUEST');
             
             const headers = buildPremiumHeaders();
             const response = await fetch(targetBaseUrl + urlPath, {
                 method: method,
-                headers: headers
+                headers: headers,
+                timeout: 30000,
             });
             let data = await response.json();
 
@@ -246,7 +306,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🏠 HOME / SHOW DATA - BRANDING
+    // 🏠 HOME / SHOW DATA
     // ==========================================
     if (urlPath.includes('/api/v3/home/') || urlPath.includes('/api/v2/home/') || 
         urlPath.includes('/api/v1.0/show/') || urlPath.includes('/category/') ||
@@ -255,7 +315,8 @@ export default async function handler(req, res) {
             const headers = buildPremiumHeaders();
             const response = await fetch(targetBaseUrl + urlPath, {
                 method: method,
-                headers: headers
+                headers: headers,
+                timeout: 30000,
             });
             let data = await response.json();
 
@@ -269,7 +330,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔓 UNLOCK / ORDER / PAYMENT FAKE
+    // 🔓 UNLOCK / ORDER / PAYMENT
     // ==========================================
     if (urlPath.includes('/unlock') || urlPath.includes('/order') || 
         urlPath.includes('/pay') || urlPath.includes('/payment') || 
@@ -288,7 +349,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 📊 ANALYTICS / TRACKING BLOCK
+    // 📊 ANALYTICS / TRACKING
     // ==========================================
     if (urlPath.includes('/events/') || urlPath.includes('web-events')) {
         return res.status(201).json({ message: "Event created successfully", success: true });
@@ -358,7 +419,6 @@ export default async function handler(req, res) {
             const response = await fetch(urlPath, fetchOptions);
             const data = await response.text();
             
-            // Try to parse JSON and inject premium
             try {
                 const jsonData = JSON.parse(data);
                 if (jsonData && jsonData.idToken) {
@@ -404,9 +464,10 @@ export default async function handler(req, res) {
         return res.status(200).json({
             status: "🔥 Proxy is Running",
             brand: "BAD BOY EDITION",
-            message: "Hardcoded Premium Token Inject Active! OTP Login Fixed!",
+            message: "OTP Login Fixed! Supports POST (send OTP) and PUT (verify OTP)",
             endpoints: {
-                otp_login: "/api/v1.0/users/otp-less/",
+                otp_send: "POST /api/v1.0/users/otp-less/",
+                otp_verify: "PUT /api/v1.0/users/otp-less/",
                 session: "/api/v1.1/users/get-session-token/",
                 config: "/api/v1.0/config/master/android/",
                 home: "/api/v3/home/all/?page=1"
@@ -415,7 +476,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔄 BAAKI SARI REQUESTS FORWARD
+    // 🔄 ALL OTHER REQUESTS
     // ==========================================
     try {
         const headers = buildPremiumHeaders();
