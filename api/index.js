@@ -1,6 +1,6 @@
 // ==========================================
-// 🎯 KUKU FM PROXY (BAD BOY EDITION)
-// 🔥 Hardcoded Premium Token Inject - OTP FIXED
+// 🎯 KUKU FM PROXY (BAD BOY EDITION) v2.0
+// 🔥 PREMIUM PERSISTENCE FIXED
 // ==========================================
 
 export default async function handler(req, res) {
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     // ==========================================
     // 🔥 HARDCORE PREMIUM TOKEN + CREDENTIALS
     // ==========================================
-        const PREMIUM = {
+    const PREMIUM = {
         authorization: "jwt eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozNTIwMTAwODYsImV4cCI6MTc4NTM1MjY2Niwic3ViX3Byb2ZpbGVfaWQiOjIxMDE1MjYxLCJ1bmlxdWVfaWQiOiJhZWU2NDQ4MS00MmRiLTQyZmItODYxYS04MTRmNWM2YjQyMGUifQ.oExc_RzbLGEiMx7IDhwfA7JumeZFQQ5IhSQE_KethUP2j2Fn8-UdzT-p5q37KYQ__jIqlsTJPe4LLrHK5cLoBg",
         device_id: "61304354-728a-4058-8586-4607eefa339e",
         android_id: "690fc583b739834",
@@ -69,6 +69,92 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
+    // 🔥 FORCE PREMIUM ON ANY USER DATA
+    // ==========================================
+    function forcePremiumOnUserData(data) {
+        if (!data) return data;
+        
+        // Force premium on main user object
+        if (data.user) {
+            data.user.has_premium = true;
+            data.user.is_user_anonymous = false;
+            data.user.is_free_trial_period = true;
+            data.user.is_existing_subscriber = true;
+            data.user.premium = true;
+            data.user.is_premium = true;
+            
+            // Force subscription
+            if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
+                data.user.user_subscriptions = [{
+                    status: "Active",
+                    valid_till: "2099-12-31",
+                    plan_name: "Lifetime [ BAD BOY ] Premium",
+                    is_recurring: false,
+                    plan_amount: 0,
+                    plan_id: "premium_lifetime",
+                    subscription_id: "BB_" + Date.now()
+                }];
+            } else {
+                data.user.user_subscriptions.forEach(sub => {
+                    sub.status = "Active";
+                    sub.valid_till = "2099-12-31";
+                    sub.plan_name = "Lifetime [ BAD BOY ] Premium";
+                    sub.is_recurring = false;
+                    sub.plan_amount = 0;
+                });
+            }
+        }
+        
+        // Force on user_data
+        if (data.user_data) {
+            data.user_data.has_premium = true;
+            data.user_data.is_anonymous = false;
+            data.user_data.is_existing_subscriber = true;
+            data.user_data.premium = true;
+            
+            if (data.user_data.user) {
+                data.user_data.user.has_premium = true;
+                data.user_data.user.is_free_trial_period = true;
+                data.user_data.user.is_existing_subscriber = true;
+                data.user_data.user.premium = true;
+                
+                if (!data.user_data.user.user_subscriptions || data.user_data.user.user_subscriptions.length === 0) {
+                    data.user_data.user.user_subscriptions = [{
+                        status: "Active",
+                        valid_till: "2099-12-31",
+                        plan_name: "Lifetime [ BAD BOY ] Premium",
+                        is_recurring: false,
+                        plan_amount: 0
+                    }];
+                }
+            }
+        }
+        
+        // Force on any object with user-like structure
+        if (data.data && data.data.user) {
+            data.data.user.has_premium = true;
+            data.data.user.is_premium = true;
+            data.data.user.premium = true;
+        }
+        
+        return data;
+    }
+
+    // ==========================================
+    // 🔥 FORCE TOKENS ON ANY RESPONSE
+    // ==========================================
+    function forceTokens(data) {
+        if (data) {
+            data.access_token = PREMIUM.authorization.replace('jwt ', '');
+            data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
+            data.token = PREMIUM.authorization.replace('jwt ', '');
+            data.success = true;
+            data.code = 200;
+        }
+        return data;
+    }
+
+    // ==========================================
     // 🔥 NEW: SEND OTP HANDLER
     // ==========================================
     if (urlPath.includes('/api/v1.0/users/auth/send-otp/')) {
@@ -102,7 +188,6 @@ export default async function handler(req, res) {
     // ==========================================
     if (urlPath.includes('/api/v1.0/users/auth/verify-otp/')) {
         try {
-            // Forward to real API
             const headers = { ...req.headers };
             delete headers['accept-encoding'];
             delete headers['content-length'];
@@ -121,13 +206,11 @@ export default async function handler(req, res) {
             const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
             let data = await response.json();
 
-            // 🔥 CRITICAL FIX: Always return success with premium
-            // Even if OTP is wrong, we inject premium to let user in
             data = data || {};
             
-            // Inject premium tokens
-            data.access_token = PREMIUM.authorization.replace('jwt ', '');
-            data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
+            // Force premium and tokens
+            data = forcePremiumOnUserData(data);
+            data = forceTokens(data);
             
             // Ensure user exists
             if (!data.user) {
@@ -139,6 +222,8 @@ export default async function handler(req, res) {
             data.user.is_user_anonymous = false;
             data.user.is_free_trial_period = true;
             data.user.is_existing_subscriber = true;
+            data.user.premium = true;
+            data.user.is_premium = true;
             
             // Add subscription if missing
             if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
@@ -160,7 +245,6 @@ export default async function handler(req, res) {
             return res.status(200).json(data);
             
         } catch (error) {
-            // Even on error, return premium response
             return res.status(200).json({
                 success: true,
                 code: 200,
@@ -172,6 +256,8 @@ export default async function handler(req, res) {
                     is_user_anonymous: false,
                     is_free_trial_period: true,
                     is_existing_subscriber: true,
+                    premium: true,
+                    is_premium: true,
                     user_subscriptions: [{
                         status: "Active",
                         valid_till: "2099-12-31",
@@ -185,7 +271,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 1️⃣ GET SESSION TOKEN - PREMIUM INJECT 🔥
+    // 🔥 FIXED: GET SESSION TOKEN - PERSISTENT PREMIUM
     // ==========================================
     if (urlPath.includes('/api/v1.1/users/get-session-token/')) {
         try {
@@ -207,22 +293,38 @@ export default async function handler(req, res) {
             const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
             let data = await response.json();
 
-            // 🔥 PREMIUM INJECT
-            if (data.user) {
-                data.user.has_premium = true;
-                data.user.is_user_anonymous = false;
-                data.user.is_free_trial_period = true;
-                data.user.is_existing_subscriber = true;
-                
-                if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
-                    data.user.user_subscriptions = [{
-                        status: "Active",
-                        valid_till: "2099-12-31",
-                        plan_name: "Lifetime [ BAD BOY ] Premium",
-                        is_recurring: false,
-                        plan_amount: 0
-                    }];
-                }
+            // 🔥 FORCE PREMIUM ON EVERY RESPONSE
+            data = forcePremiumOnUserData(data);
+            data = forceTokens(data);
+            
+            // Ensure user exists with premium
+            if (!data.user) {
+                data.user = {};
+            }
+            
+            data.user.has_premium = true;
+            data.user.is_user_anonymous = false;
+            data.user.is_free_trial_period = true;
+            data.user.is_existing_subscriber = true;
+            data.user.premium = true;
+            data.user.is_premium = true;
+            
+            if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
+                data.user.user_subscriptions = [{
+                    status: "Active",
+                    valid_till: "2099-12-31",
+                    plan_name: "Lifetime [ BAD BOY ] Premium",
+                    is_recurring: false,
+                    plan_amount: 0
+                }];
+            } else {
+                data.user.user_subscriptions.forEach(sub => {
+                    sub.status = "Active";
+                    sub.valid_till = "2099-12-31";
+                    sub.plan_name = "Lifetime [ BAD BOY ] Premium";
+                    sub.is_recurring = false;
+                    sub.plan_amount = 0;
+                });
             }
             
             // 🔥 BRANDING
@@ -237,7 +339,6 @@ export default async function handler(req, res) {
                 }
             }
 
-            // 🔥 TOKEN INJECT
             data.access_token = PREMIUM.authorization.replace('jwt ', '');
             data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
             data.code = 200;
@@ -247,7 +348,6 @@ export default async function handler(req, res) {
             return res.status(200).json(data);
             
         } catch (error) {
-            // Return mock session on error
             return res.status(200).json({
                 success: true,
                 code: 200,
@@ -258,6 +358,8 @@ export default async function handler(req, res) {
                     is_user_anonymous: false,
                     is_free_trial_period: true,
                     is_existing_subscriber: true,
+                    premium: true,
+                    is_premium: true,
                     name: "BAD BOY Premium [ BAD BOY ]",
                     user_subscriptions: [{
                         status: "Active",
@@ -272,7 +374,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 2️⃣ MASTER CONFIG - PREMIUM SPOOF 🔥
+    // 🔥 FIXED: MASTER CONFIG - PREMIUM SPOOF
     // ==========================================
     if (urlPath.includes('/api/v1.0/config/master/android/')) {
         try {
@@ -283,14 +385,23 @@ export default async function handler(req, res) {
             });
             let data = await response.json();
 
+            // Force premium on all user data
+            data = forcePremiumOnUserData(data);
+            data = forceTokens(data);
+
             if (data.user_data) {
                 data.user_data.has_premium = true;
                 data.user_data.is_anonymous = false;
                 data.user_data.is_existing_subscriber = true;
+                data.user_data.premium = true;
+                data.user_data.is_premium = true;
                 
                 if (data.user_data.user) {
                     data.user_data.user.has_premium = true;
                     data.user_data.user.is_free_trial_period = true;
+                    data.user_data.user.is_existing_subscriber = true;
+                    data.user_data.user.premium = true;
+                    data.user_data.user.is_premium = true;
                     
                     if (data.user_data.user.user_subscriptions && 
                         data.user_data.user.user_subscriptions.length > 0) {
@@ -299,6 +410,7 @@ export default async function handler(req, res) {
                             sub.valid_till = "2099-12-31";
                             sub.plan_name = "Lifetime [ BAD BOY ] Premium";
                             sub.is_recurring = false;
+                            sub.plan_amount = 0;
                         });
                     } else {
                         data.user_data.user.user_subscriptions = [{
@@ -317,6 +429,66 @@ export default async function handler(req, res) {
             
         } catch (error) {
             return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // ==========================================
+    // 🔥 FIXED: ANY ENDPOINT WITH USER DATA
+    // ==========================================
+    // This catches any endpoint that might contain user data
+    const userDataEndpoints = [
+        '/api/v1.0/user/',
+        '/api/v1.1/user/',
+        '/api/v2/user/',
+        '/api/v3/user/',
+        '/api/v1.0/profile/',
+        '/api/v1.0/me/',
+        '/api/v1.0/account/',
+        '/api/v1.0/subscription/',
+        '/api/v1.0/premium/',
+        '/api/v1.0/user/subscription/',
+        '/api/v1.0/user/profile/',
+    ];
+
+    const shouldForcePremium = userDataEndpoints.some(endpoint => urlPath.includes(endpoint));
+
+    if (shouldForcePremium) {
+        try {
+            const headers = buildPremiumHeaders();
+            const response = await fetch(targetBaseUrl + urlPath, {
+                method: method,
+                headers: headers
+            });
+            let data = await response.json();
+
+            // Force premium on all user data
+            data = forcePremiumOnUserData(data);
+            data = forceTokens(data);
+
+            injectBadBoyBranding(data);
+            return res.status(200).json(data);
+        } catch (error) {
+            // Return premium mock on error
+            return res.status(200).json({
+                success: true,
+                code: 200,
+                message: "Premium Active [ BAD BOY ]",
+                user: {
+                    has_premium: true,
+                    is_user_anonymous: false,
+                    is_free_trial_period: true,
+                    is_existing_subscriber: true,
+                    premium: true,
+                    is_premium: true,
+                    user_subscriptions: [{
+                        status: "Active",
+                        valid_till: "2099-12-31",
+                        plan_name: "Lifetime [ BAD BOY ] Premium",
+                        is_recurring: false,
+                        plan_amount: 0
+                    }]
+                }
+            });
         }
     }
 
@@ -354,7 +526,9 @@ export default async function handler(req, res) {
                 orderId: "BB_" + Date.now(),
                 status: "SUCCESS",
                 unlockTime: Date.now(),
-                isPremium: true
+                isPremium: true,
+                has_premium: true,
+                premium: true
             },
             success: true
         });
@@ -458,8 +632,8 @@ export default async function handler(req, res) {
     if (urlPath === '/' || urlPath === '') {
         return res.status(200).json({
             status: "🔥 Proxy is Running",
-            brand: "BAD BOY EDITION",
-            message: "OTP Fixed! App will proceed after verification.",
+            brand: "BAD BOY EDITION v2.0",
+            message: "PREMIUM PERSISTENCE FIXED! App will stay premium.",
             endpoints: {
                 send_otp: "POST /api/v1.0/users/auth/send-otp/",
                 verify_otp: "POST /api/v1.0/users/auth/verify-otp/",
@@ -494,6 +668,11 @@ export default async function handler(req, res) {
 
         if (contentType.includes('application/json')) {
             let data = await response.json();
+            
+            // Force premium on any JSON response
+            data = forcePremiumOnUserData(data);
+            data = forceTokens(data);
+            
             injectBadBoyBranding(data);
             return res.status(response.status).json(data);
         } 
@@ -513,7 +692,8 @@ export default async function handler(req, res) {
         console.error('❌ Proxy Error:', error);
         return res.status(500).json({
             code: 500,
-            message: "Proxy Error: " + error.message
+            message: "Proxy Error: " + error.message,
+            success: false
         });
     }
 }
