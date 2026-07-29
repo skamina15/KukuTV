@@ -1,17 +1,16 @@
 // ==========================================
-// 🎯 KUKU FM PROXY (BAD BOY EDITION) 
-// 🔥 NO BODY CORRUPTION - RAW BODY PASS
+// 🎯 KUKU FM PROXY (BAD BOY EDITION)
+// 🔥 SIMPLE FORWARD - NO BODY CORRUPTION
 // ==========================================
 
 export default async function handler(req, res) {
+    // Get the full URL path
     const urlPath = req.headers['x-invoke-path'] || req.url;
     const method = req.method;
     const targetBaseUrl = "https://api.kukufm.com";
 
-    res.setHeader('Content-Type', 'application/json; charset=UTF-8');
-
     // ==========================================
-    // 🔥 HARDCORE PREMIUM TOKEN + CREDENTIALS
+    // 🔥 HARDCORE PREMIUM TOKEN
     // ==========================================
     const PREMIUM = {
         authorization: "jwt eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozNzQ5ODA0ODMsImV4cCI6MTc4NTMyMDc0MSwic3ViX3Byb2ZpbGVfaWQiOjQ5NDQ4MzE1LCJ1bmlxdWVfaWQiOiI3MDQ3YmJhYS1kZWRiLTQ2N2MtYTVmZC1hY2I1ZjRhMjg2MWIifQ.QZ97fL0LNPULpYs4WcUYbWBC3tY6astiSpmP8yBHYwfFD2Ay9EOy6ydiTCCME7PxgCTstfsb-nPGtdrSSg8E-A",
@@ -69,121 +68,151 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔥 HELPER - GET RAW BODY
+    // 🔥 SIMPLE FORWARD FUNCTION
     // ==========================================
-    function getRawBody(req) {
-        // If body is already a Buffer or string, use it
-        if (req.body) {
-            if (Buffer.isBuffer(req.body)) {
-                return req.body;
-            }
-            if (typeof req.body === 'string') {
-                return req.body;
-            }
-            if (typeof req.body === 'object') {
-                return JSON.stringify(req.body);
+    async function forwardRequest(url, options = {}) {
+        const headers = { ...req.headers };
+        delete headers['accept-encoding'];
+        delete headers['content-length'];
+        delete headers['host'];
+        delete headers['connection'];
+        
+        // If we have premium headers, merge them
+        if (options.premium) {
+            const premiumHeaders = buildPremiumHeaders();
+            Object.assign(headers, premiumHeaders);
+        }
+
+        const fetchOptions = {
+            method: method,
+            headers: headers,
+            timeout: 30000,
+        };
+
+        // For POST/PUT requests with body - use raw body from req
+        if (method !== 'GET' && method !== 'HEAD') {
+            // Vercel gives us the body in req.body - use it directly
+            if (req.body) {
+                // If it's a string, use as is
+                if (typeof req.body === 'string') {
+                    fetchOptions.body = req.body;
+                }
+                // If it's an object, stringify
+                else if (typeof req.body === 'object') {
+                    fetchOptions.body = JSON.stringify(req.body);
+                }
+                // If it's a buffer, use it
+                else if (Buffer.isBuffer(req.body)) {
+                    fetchOptions.body = req.body;
+                }
             }
         }
-        return null;
-    }
 
-    // ==========================================
-    // 🔥 SEND OTP - /api/v1.0/users/auth/send-otp/
-    // ==========================================
-    if (urlPath.includes('/api/v1.0/users/auth/send-otp/')) {
         try {
-            console.log('📱 SEND OTP REQUEST');
-            
-            const rawBody = getRawBody(req);
-            console.log('📤 Raw Body:', rawBody);
-
-            const headers = { ...req.headers };
-            delete headers['accept-encoding'];
-            delete headers['content-length'];
-            delete headers['host'];
-
-            const fetchOptions = {
-                method: 'POST',
-                headers: headers,
-                timeout: 30000,
-            };
-
-            if (rawBody) {
-                fetchOptions.body = rawBody;
-            }
-
-            const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
-            const data = await response.json();
-            
-            console.log('📥 Send OTP Response:', JSON.stringify(data, null, 2));
-
-            return res.status(response.status).json(data);
-            
-        } catch (error) {
-            console.error('❌ Send OTP Error:', error);
-            return res.status(500).json({ 
-                error: error.message,
-                code: 500
-            });
-        }
-    }
-
-    // ==========================================
-    // 🔥 VERIFY OTP - /api/v1.0/users/auth/verify-otp/
-    // ==========================================
-    if (urlPath.includes('/api/v1.0/users/auth/verify-otp/')) {
-        try {
-            console.log('🔐 VERIFY OTP REQUEST');
-            
-            const rawBody = getRawBody(req);
-            console.log('📤 Raw Body:', rawBody);
-
-            const headers = { ...req.headers };
-            delete headers['accept-encoding'];
-            delete headers['content-length'];
-            delete headers['host'];
-            
-            // Ensure correct content-type
-            headers['content-type'] = 'application/json; charset=UTF-8';
-
-            const fetchOptions = {
-                method: 'POST',
-                headers: headers,
-                timeout: 30000,
-            };
-
-            if (rawBody) {
-                fetchOptions.body = rawBody;
-            }
-
-            console.log('📤 Forwarding to:', targetBaseUrl + urlPath);
-            console.log('📤 Headers:', JSON.stringify(headers, null, 2));
-            
-            const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
-            const responseText = await response.text();
-            
-            console.log('📥 Raw Response:', responseText);
+            const response = await fetch(targetBaseUrl + url, fetchOptions);
+            const contentType = response.headers.get('content-type') || '';
             
             let data;
-            try {
-                data = JSON.parse(responseText);
-            } catch(e) {
-                data = { raw: responseText };
+            if (contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                const buffer = await response.arrayBuffer();
+                return { status: response.status, headers: response.headers, data: Buffer.from(buffer), isJson: false };
             }
             
-            console.log('📥 Parsed Response:', JSON.stringify(data, null, 2));
+            return { status: response.status, headers: response.headers, data: data, isJson: true };
+        } catch (error) {
+            console.error('Forward Error:', error);
+            throw error;
+        }
+    }
 
-            // Check if verification was successful
-            if (!data.error_code) {
-                // 🔥 SUCCESS - INJECT PREMIUM
-                data.access_token = PREMIUM.authorization.replace('jwt ', '');
-                data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
+    // ==========================================
+    // 🔥 HANDLE ALL API REQUESTS
+    // ==========================================
+    
+    // === SEND OTP ===
+    if (urlPath.includes('/api/v1.0/users/auth/send-otp/')) {
+        try {
+            console.log('📱 SEND OTP');
+            const result = await forwardRequest(urlPath);
+            
+            if (result.isJson) {
+                return res.status(result.status).json(result.data);
+            } else {
+                res.setHeader('Content-Type', 'application/octet-stream');
+                return res.status(result.status).send(result.data);
+            }
+        } catch (error) {
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // === VERIFY OTP ===
+    if (urlPath.includes('/api/v1.0/users/auth/verify-otp/')) {
+        try {
+            console.log('🔐 VERIFY OTP');
+            const result = await forwardRequest(urlPath);
+            
+            if (result.isJson) {
+                let data = result.data;
+                
+                // Check if OTP verification was successful
+                if (!data.error_code && data.message !== 'INVALID_REQUEST') {
+                    // 🔥 INJECT PREMIUM
+                    data.access_token = PREMIUM.authorization.replace('jwt ', '');
+                    data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
+                    
+                    if (data.user) {
+                        data.user.has_premium = true;
+                        data.user.is_user_anonymous = false;
+                        data.user.is_free_trial_period = true;
+                        data.user.is_existing_subscriber = true;
+                        
+                        if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
+                            data.user.user_subscriptions = [{
+                                status: "Active",
+                                valid_till: "2099-12-31",
+                                plan_name: "Lifetime Premium [BAD BOY]",
+                                is_recurring: false,
+                                plan_amount: 0,
+                                subscription_id: "BB_" + Date.now()
+                            }];
+                        }
+                    }
+                    
+                    data.success = true;
+                    data.code = 200;
+                    data.message = "Login successful [BAD BOY]";
+                    
+                    injectBadBoyBranding(data);
+                    return res.status(200).json(data);
+                } else {
+                    // OTP wrong - return original error
+                    return res.status(result.status).json(data);
+                }
+            } else {
+                res.setHeader('Content-Type', 'application/octet-stream');
+                return res.status(result.status).send(result.data);
+            }
+        } catch (error) {
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // === SESSION TOKEN ===
+    if (urlPath.includes('/api/v1.1/users/get-session-token/')) {
+        try {
+            console.log('🎫 SESSION TOKEN');
+            const result = await forwardRequest(urlPath);
+            
+            if (result.isJson) {
+                let data = result.data;
                 
                 if (data.user) {
                     data.user.has_premium = true;
                     data.user.is_user_anonymous = false;
                     data.user.is_free_trial_period = true;
-                    data.user.is_existing_subscriber = true;
                     
                     if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
                         data.user.user_subscriptions = [{
@@ -191,236 +220,96 @@ export default async function handler(req, res) {
                             valid_till: "2099-12-31",
                             plan_name: "Lifetime Premium [BAD BOY]",
                             is_recurring: false,
-                            plan_amount: 0,
-                            subscription_id: "BB_" + Date.now()
+                            plan_amount: 0
                         }];
                     }
                 }
                 
-                data.success = true;
+                data.access_token = PREMIUM.authorization.replace('jwt ', '');
+                data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
                 data.code = 200;
-                data.message = "Login successful [BAD BOY]";
+                data.success = true;
                 
                 injectBadBoyBranding(data);
                 return res.status(200).json(data);
             } else {
-                // OTP is wrong - return actual error
-                console.log('❌ OTP Verification Failed:', data.error_message || data.message);
-                return res.status(200).json(data);
+                res.setHeader('Content-Type', 'application/octet-stream');
+                return res.status(result.status).send(result.data);
             }
-            
         } catch (error) {
-            console.error('❌ Verify OTP Error:', error);
-            return res.status(500).json({ 
-                error: error.message,
-                code: 500
-            });
-        }
-    }
-
-    // ==========================================
-    // 🔥 OTP-LESS LOGIN
-    // ==========================================
-    if (urlPath.includes('/api/v1.0/users/otp-less/')) {
-        try {
-            console.log('🔐 OTP-LESS REQUEST');
-            
-            const rawBody = getRawBody(req);
-
-            const headers = { ...req.headers };
-            delete headers['accept-encoding'];
-            delete headers['content-length'];
-            delete headers['host'];
-
-            const fetchOptions = {
-                method: method,
-                headers: headers,
-                timeout: 30000,
-            };
-
-            if (rawBody) {
-                fetchOptions.body = rawBody;
-            }
-
-            const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
-            let data = await response.json();
-
-            if (data && !data.error_code) {
-                data.access_token = PREMIUM.authorization.replace('jwt ', '');
-                data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
-                
-                if (data.user) {
-                    data.user.has_premium = true;
-                    data.user.is_user_anonymous = false;
-                    data.user.is_free_trial_period = true;
-                    data.user.is_existing_subscriber = true;
-                    
-                    if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
-                        data.user.user_subscriptions = [{
-                            status: "Active",
-                            valid_till: "2099-12-31",
-                            plan_name: "Lifetime Premium [BAD BOY]",
-                            is_recurring: false,
-                            plan_amount: 0
-                        }];
-                    }
-                }
-                
-                data.success = true;
-                data.code = 200;
-            }
-
-            injectBadBoyBranding(data);
-            return res.status(200).json(data);
-            
-        } catch (error) {
-            console.error('❌ OTP-LESS Error:', error);
             return res.status(500).json({ error: error.message });
         }
     }
 
-    // ==========================================
-    // 🔥 GET SESSION TOKEN
-    // ==========================================
-    if (urlPath.includes('/api/v1.1/users/get-session-token/')) {
-        try {
-            console.log('🎫 SESSION TOKEN REQUEST');
-            
-            const headers = { ...req.headers };
-            delete headers['accept-encoding'];
-            delete headers['content-length'];
-            delete headers['host'];
-
-            let body = null;
-            if (method !== 'GET' && method !== 'HEAD' && req.body) {
-                body = getRawBody(req);
-            }
-
-            const fetchOptions = {
-                method: method,
-                headers: headers,
-                timeout: 30000,
-            };
-
-            if (body) {
-                fetchOptions.body = body;
-            }
-
-            const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
-            let data = await response.json();
-            
-            console.log('📥 Session Response:', JSON.stringify(data, null, 2));
-
-            if (data.user) {
-                data.user.has_premium = true;
-                data.user.is_user_anonymous = false;
-                data.user.is_free_trial_period = true;
-                
-                if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
-                    data.user.user_subscriptions = [{
-                        status: "Active",
-                        valid_till: "2099-12-31",
-                        plan_name: "Lifetime Premium [BAD BOY]",
-                        is_recurring: false,
-                        plan_amount: 0
-                    }];
-                }
-            }
-            
-            data.access_token = PREMIUM.authorization.replace('jwt ', '');
-            data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
-            data.code = 200;
-            data.success = true;
-
-            injectBadBoyBranding(data);
-            return res.status(200).json(data);
-            
-        } catch (error) {
-            console.error('❌ Session Error:', error);
-            return res.status(500).json({ error: error.message });
-        }
-    }
-
-    // ==========================================
-    // 🔥 MASTER CONFIG
-    // ==========================================
+    // === MASTER CONFIG ===
     if (urlPath.includes('/api/v1.0/config/master/android/')) {
         try {
-            console.log('⚙️ MASTER CONFIG REQUEST');
+            console.log('⚙️ MASTER CONFIG');
+            const result = await forwardRequest(urlPath, { premium: true });
             
-            const headers = buildPremiumHeaders();
-            const response = await fetch(targetBaseUrl + urlPath, {
-                method: method,
-                headers: headers,
-                timeout: 30000,
-            });
-            let data = await response.json();
-
-            if (data.user_data) {
-                data.user_data.has_premium = true;
-                data.user_data.is_anonymous = false;
-                data.user_data.is_existing_subscriber = true;
+            if (result.isJson) {
+                let data = result.data;
                 
-                if (data.user_data.user) {
-                    data.user_data.user.has_premium = true;
-                    data.user_data.user.is_free_trial_period = true;
+                if (data.user_data) {
+                    data.user_data.has_premium = true;
+                    data.user_data.is_anonymous = false;
+                    data.user_data.is_existing_subscriber = true;
                     
-                    if (data.user_data.user.user_subscriptions && 
-                        data.user_data.user.user_subscriptions.length > 0) {
-                        data.user_data.user.user_subscriptions.forEach(sub => {
-                            sub.status = "Active";
-                            sub.valid_till = "2099-12-31";
-                            sub.plan_name = "Lifetime [ BAD BOY ] Premium";
-                            sub.is_recurring = false;
-                        });
-                    } else {
-                        data.user_data.user.user_subscriptions = [{
-                            status: "Active",
-                            valid_till: "2099-12-31",
-                            plan_name: "Lifetime [ BAD BOY ] Premium",
-                            is_recurring: false,
-                            plan_amount: 0
-                        }];
+                    if (data.user_data.user) {
+                        data.user_data.user.has_premium = true;
+                        data.user_data.user.is_free_trial_period = true;
+                        
+                        if (data.user_data.user.user_subscriptions && 
+                            data.user_data.user.user_subscriptions.length > 0) {
+                            data.user_data.user.user_subscriptions.forEach(sub => {
+                                sub.status = "Active";
+                                sub.valid_till = "2099-12-31";
+                                sub.plan_name = "Lifetime [ BAD BOY ] Premium";
+                                sub.is_recurring = false;
+                            });
+                        } else {
+                            data.user_data.user.user_subscriptions = [{
+                                status: "Active",
+                                valid_till: "2099-12-31",
+                                plan_name: "Lifetime [ BAD BOY ] Premium",
+                                is_recurring: false,
+                                plan_amount: 0
+                            }];
+                        }
                     }
                 }
+                
+                injectBadBoyBranding(data);
+                return res.status(200).json(data);
+            } else {
+                res.setHeader('Content-Type', 'application/octet-stream');
+                return res.status(result.status).send(result.data);
             }
-
-            injectBadBoyBranding(data);
-            return res.status(200).json(data);
-            
         } catch (error) {
-            console.error('❌ Config Error:', error);
             return res.status(500).json({ error: error.message });
         }
     }
 
-    // ==========================================
-    // 🏠 HOME / SHOW DATA
-    // ==========================================
+    // === HOME / SEARCH ===
     if (urlPath.includes('/api/v3/home/') || urlPath.includes('/api/v2/home/') || 
         urlPath.includes('/api/v1.0/show/') || urlPath.includes('/category/') ||
         urlPath.includes('/search')) {
         try {
-            const headers = buildPremiumHeaders();
-            const response = await fetch(targetBaseUrl + urlPath, {
-                method: method,
-                headers: headers,
-                timeout: 30000,
-            });
-            let data = await response.json();
-
-            injectBadBoyBranding(data);
-            return res.status(200).json(data);
+            const result = await forwardRequest(urlPath, { premium: true });
             
+            if (result.isJson) {
+                injectBadBoyBranding(result.data);
+                return res.status(result.status).json(result.data);
+            } else {
+                res.setHeader('Content-Type', 'application/octet-stream');
+                return res.status(result.status).send(result.data);
+            }
         } catch (error) {
-            console.error('❌ Home Error:', error);
             return res.status(500).json({ error: error.message });
         }
     }
 
-    // ==========================================
-    // 🔓 UNLOCK / ORDER / PAYMENT
-    // ==========================================
+    // === UNLOCK / PAYMENT ===
     if (urlPath.includes('/unlock') || urlPath.includes('/order') || 
         urlPath.includes('/pay') || urlPath.includes('/payment') || 
         urlPath.includes('/purchase')) {
@@ -437,9 +326,7 @@ export default async function handler(req, res) {
         });
     }
 
-    // ==========================================
-    // 📊 ANALYTICS / TRACKING
-    // ==========================================
+    // === ANALYTICS / TRACKING ===
     if (urlPath.includes('/events/') || urlPath.includes('web-events')) {
         return res.status(201).json({ message: "Event created successfully", success: true });
     }
@@ -456,9 +343,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
     }
 
-    // ==========================================
-    // 📱 OTPLESS HANDLER
-    // ==========================================
+    // === OTPLESS ===
     if (urlPath.includes('otpless') || urlPath.includes('user-auth.otpless.app')) {
         try {
             const headers = { ...req.headers };
@@ -479,15 +364,12 @@ export default async function handler(req, res) {
             const response = await fetch(urlPath, fetchOptions);
             const data = await response.text();
             return res.status(response.status).send(data);
-            
         } catch (e) {
             return res.status(200).json({ status: "success" });
         }
     }
 
-    // ==========================================
-    // 🔥 FIREBASE HANDLER
-    // ==========================================
+    // === FIREBASE ===
     if (urlPath.includes('firebase') || urlPath.includes('googleapis.com')) {
         try {
             const headers = { ...req.headers };
@@ -519,7 +401,6 @@ export default async function handler(req, res) {
             } catch(e) {}
             
             return res.status(response.status).send(data);
-            
         } catch (e) {
             return res.status(200).json({ 
                 kind: "identitytoolkit#VerifyCustomTokenResponse", 
@@ -529,9 +410,7 @@ export default async function handler(req, res) {
         }
     }
 
-    // ==========================================
-    // ☁️ CLOUDFRONT HANDLER
-    // ==========================================
+    // === CLOUDFRONT ===
     if (urlPath.includes('cloudfront.net')) {
         try {
             const response = await fetch(urlPath);
@@ -540,69 +419,39 @@ export default async function handler(req, res) {
                 res.setHeader(key, value);
             });
             return res.status(response.status).send(Buffer.from(buffer));
-            
         } catch (e) {
             return res.status(404).send('Not found');
         }
     }
 
-    // ==========================================
-    // 🏠 ROOT PATH
-    // ==========================================
+    // === ROOT ===
     if (urlPath === '/' || urlPath === '') {
         return res.status(200).json({
-            status: "🔥 Proxy is Running",
+            status: "🔥 Proxy Running",
             brand: "BAD BOY EDITION",
-            message: "OTP Verification Fixed! Raw body preserved!",
+            message: "No body corruption! Using raw body forwarding.",
             endpoints: {
                 send_otp: "POST /api/v1.0/users/auth/send-otp/",
                 verify_otp: "POST /api/v1.0/users/auth/verify-otp/",
-                session: "/api/v1.1/users/get-session-token/",
-                config: "/api/v1.0/config/master/android/",
-                home: "/api/v3/home/all/?page=1"
+                session: "POST /api/v1.1/users/get-session-token/",
+                config: "POST /api/v1.0/config/master/android/"
             }
         });
     }
 
     // ==========================================
-    // 🔄 ALL OTHER REQUESTS
+    // 🔄 DEFAULT - Forward all other requests
     // ==========================================
     try {
-        const headers = buildPremiumHeaders();
-        delete headers['accept-encoding'];
-        delete headers['content-length'];
-        delete headers['host'];
-
-        const fetchOptions = {
-            method: method,
-            headers: headers,
-            timeout: 30000,
-        };
-
-        if (method !== 'GET' && method !== 'HEAD' && req.body) {
-            fetchOptions.body = getRawBody(req);
+        const result = await forwardRequest(urlPath, { premium: true });
+        
+        if (result.isJson) {
+            injectBadBoyBranding(result.data);
+            return res.status(result.status).json(result.data);
+        } else {
+            res.setHeader('Content-Type', 'application/octet-stream');
+            return res.status(result.status).send(result.data);
         }
-
-        const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
-        const contentType = response.headers.get('content-type') || '';
-
-        if (contentType.includes('application/json')) {
-            let data = await response.json();
-            injectBadBoyBranding(data);
-            return res.status(response.status).json(data);
-        } 
-        else {
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            
-            response.headers.forEach((value, key) => {
-                if (key !== 'content-encoding' && key !== 'content-length') {
-                    res.setHeader(key, value);
-                }
-            });
-            return res.status(response.status).send(buffer);
-        }
-
     } catch (error) {
         console.error('❌ Proxy Error:', error);
         return res.status(500).json({
