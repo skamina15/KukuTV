@@ -1,6 +1,6 @@
 // ==========================================
 // 🎯 KUKU FM PROXY (BAD BOY EDITION) 
-// 🔥 CRASH FIXED - OTP WORKING
+// 🔥 FINAL FIX - OTP VERIFICATION WORKING
 // ==========================================
 
 export default async function handler(req, res) {
@@ -30,18 +30,18 @@ export default async function handler(req, res) {
     // 🏷️ BRANDING FUNCTION
     // ==========================================
     function injectBadBoyBranding(obj) {
-        if (!obj || typeof obj !== 'object') return;
-        
         const targetKeys = ['title', 'name', 'summary', 'description', 'text', 'content', 'label', 'tag_text', 'plan_name', 'subtitle', 'bio'];
 
-        for (let key in obj) {
-            if (typeof obj[key] === 'string' && targetKeys.includes(key)) {
-                if (!obj[key].includes('[ BAD BOY ]')) {
-                    obj[key] = obj[key] + ' [ BAD BOY ]';
+        if (typeof obj === 'object' && obj !== null) {
+            for (let key in obj) {
+                if (typeof obj[key] === 'string' && targetKeys.includes(key)) {
+                    if (!obj[key].includes('[ BAD BOY ]')) {
+                        obj[key] = obj[key] + ' [ BAD BOY ]';
+                    }
+                } 
+                else if (typeof obj[key] === 'object') {
+                    injectBadBoyBranding(obj[key]);
                 }
-            } 
-            else if (typeof obj[key] === 'object') {
-                injectBadBoyBranding(obj[key]);
             }
         }
     }
@@ -69,45 +69,49 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔥 SEND OTP - /api/v1.0/users/auth/
+    // 🔥 SEND OTP - /api/v1.0/users/auth/send-otp/
     // ==========================================
-    if (urlPath === '/api/v1.0/users/auth/' || urlPath === '/api/v1.0/users/auth') {
+    if (urlPath.includes('/api/v1.0/users/auth/send-otp/')) {
         try {
             console.log('📱 SEND OTP REQUEST');
             
-            // Get body
-            let body = req.body;
-            if (typeof body === 'object') {
-                body = JSON.stringify(body);
+            // IMPORTANT: Get raw body as buffer
+            let bodyBuffer = req.body;
+            if (typeof bodyBuffer === 'string') {
+                bodyBuffer = Buffer.from(bodyBuffer);
             }
-            
-            console.log('📤 Body:', body);
 
-            // Forward request
-            const response = await fetch(targetBaseUrl + urlPath, {
+            console.log('📤 Send OTP Body Type:', typeof req.body);
+            console.log('📤 Send OTP Body:', req.body);
+
+            const headers = { ...req.headers };
+            delete headers['accept-encoding'];
+            delete headers['content-length'];
+            delete headers['host'];
+
+            const fetchOptions = {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'User-Agent': PREMIUM.user_agent,
-                    'package-name': PREMIUM.package_name,
-                    'app-version': PREMIUM.app_version,
-                    'build-number': PREMIUM.build_number,
-                    'install-source': 'google_play',
-                },
-                body: body,
-            });
+                headers: headers,
+                timeout: 30000,
+            };
 
+            // Send body exactly as received
+            if (bodyBuffer) {
+                fetchOptions.body = bodyBuffer;
+            }
+
+            const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
             const data = await response.json();
-            console.log('📥 Response:', data);
+            
+            console.log('📥 Send OTP Response:', JSON.stringify(data, null, 2));
 
             return res.status(response.status).json(data);
             
         } catch (error) {
             console.error('❌ Send OTP Error:', error);
-            return res.status(200).json({ 
-                success: true,
-                message: "OTP sent successfully",
-                code: 200
+            return res.status(500).json({ 
+                error: error.message,
+                code: 500
             });
         }
     }
@@ -115,102 +119,168 @@ export default async function handler(req, res) {
     // ==========================================
     // 🔥 VERIFY OTP - /api/v1.0/users/auth/verify-otp/
     // ==========================================
-    if (urlPath === '/api/v1.0/users/auth/verify-otp/' || urlPath === '/api/v1.0/users/auth/verify-otp') {
+    if (urlPath.includes('/api/v1.0/users/auth/verify-otp/')) {
         try {
             console.log('🔐 VERIFY OTP REQUEST');
             
-            // Get body
-            let body = req.body;
-            if (typeof body === 'object') {
-                body = JSON.stringify(body);
+            // IMPORTANT: Get raw body as buffer - DON'T MODIFY
+            let bodyBuffer = req.body;
+            
+            // If it's a string, convert to buffer
+            if (typeof bodyBuffer === 'string') {
+                bodyBuffer = Buffer.from(bodyBuffer);
+            }
+            // If it's an object, stringify it
+            else if (typeof bodyBuffer === 'object' && bodyBuffer !== null) {
+                bodyBuffer = Buffer.from(JSON.stringify(bodyBuffer));
+            }
+
+            console.log('📤 Verify OTP Body Type:', typeof req.body);
+            console.log('📤 Verify OTP Body (raw):', req.body);
+
+            const headers = { ...req.headers };
+            delete headers['accept-encoding'];
+            delete headers['content-length'];
+            delete headers['host'];
+            
+            // Preserve content-type
+            headers['content-type'] = 'application/json; charset=UTF-8';
+
+            const fetchOptions = {
+                method: 'POST',
+                headers: headers,
+                timeout: 30000,
+            };
+
+            // Send body exactly as received
+            if (bodyBuffer) {
+                fetchOptions.body = bodyBuffer;
+            }
+
+            console.log('📤 Forwarding to:', targetBaseUrl + urlPath);
+            
+            const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
+            const responseText = await response.text();
+            
+            console.log('📥 Raw Response:', responseText);
+            
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch(e) {
+                data = { raw: responseText };
             }
             
-            console.log('📤 Body:', body);
+            console.log('📥 Verify OTP Response:', JSON.stringify(data, null, 2));
 
-            // Forward to actual API
-            const response = await fetch(targetBaseUrl + urlPath, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'User-Agent': PREMIUM.user_agent,
-                    'package-name': PREMIUM.package_name,
-                    'app-version': PREMIUM.app_version,
-                    'build-number': PREMIUM.build_number,
-                    'install-source': 'google_play',
-                },
-                body: body,
-            });
-
-            let data = await response.json();
-            console.log('📥 Response:', data);
-
-            // 🔥 If OTP is correct, inject premium
-            if (data && data.success !== false) {
-                // Inject token
+            // Check if verification was successful
+            if (!data.error_code && data.message !== 'INVALID_REQUEST') {
+                // 🔥 SUCCESS - INJECT PREMIUM
                 data.access_token = PREMIUM.authorization.replace('jwt ', '');
                 data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
                 
-                // Create user if doesn't exist
-                if (!data.user) {
-                    data.user = {
-                        id: 374980483,
-                        name: "BAD BOY User",
-                        has_premium: true,
-                        is_user_anonymous: false,
-                        is_free_trial_period: true,
-                        is_existing_subscriber: true,
-                        user_subscriptions: [{
+                if (data.user) {
+                    data.user.has_premium = true;
+                    data.user.is_user_anonymous = false;
+                    data.user.is_free_trial_period = true;
+                    data.user.is_existing_subscriber = true;
+                    
+                    if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
+                        data.user.user_subscriptions = [{
+                            status: "Active",
+                            valid_till: "2099-12-31",
+                            plan_name: "Lifetime Premium [BAD BOY]",
+                            is_recurring: false,
+                            plan_amount: 0,
+                            subscription_id: "BB_" + Date.now()
+                        }];
+                    }
+                }
+                
+                data.success = true;
+                data.code = 200;
+                data.message = "Login successful [BAD BOY]";
+                
+                injectBadBoyBranding(data);
+                return res.status(200).json(data);
+            } else {
+                // OTP is wrong or invalid - return actual error
+                console.log('❌ OTP Verification Failed:', data.error_message || data.message);
+                return res.status(200).json(data);
+            }
+            
+        } catch (error) {
+            console.error('❌ Verify OTP Error:', error);
+            return res.status(500).json({ 
+                error: error.message,
+                code: 500
+            });
+        }
+    }
+
+    // ==========================================
+    // 🔥 OTP-LESS LOGIN (Alternative endpoint)
+    // ==========================================
+    if (urlPath.includes('/api/v1.0/users/otp-less/')) {
+        try {
+            console.log('🔐 OTP-LESS REQUEST');
+            
+            let bodyBuffer = req.body;
+            if (typeof bodyBuffer === 'string') {
+                bodyBuffer = Buffer.from(bodyBuffer);
+            } else if (typeof bodyBuffer === 'object' && bodyBuffer !== null) {
+                bodyBuffer = Buffer.from(JSON.stringify(bodyBuffer));
+            }
+
+            const headers = { ...req.headers };
+            delete headers['accept-encoding'];
+            delete headers['content-length'];
+            delete headers['host'];
+
+            const fetchOptions = {
+                method: method,
+                headers: headers,
+                timeout: 30000,
+            };
+
+            if (bodyBuffer) {
+                fetchOptions.body = bodyBuffer;
+            }
+
+            const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
+            let data = await response.json();
+
+            if (data && !data.error_code) {
+                data.access_token = PREMIUM.authorization.replace('jwt ', '');
+                data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
+                
+                if (data.user) {
+                    data.user.has_premium = true;
+                    data.user.is_user_anonymous = false;
+                    data.user.is_free_trial_period = true;
+                    data.user.is_existing_subscriber = true;
+                    
+                    if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
+                        data.user.user_subscriptions = [{
                             status: "Active",
                             valid_till: "2099-12-31",
                             plan_name: "Lifetime Premium [BAD BOY]",
                             is_recurring: false,
                             plan_amount: 0
-                        }]
-                    };
-                } else {
-                    data.user.has_premium = true;
-                    data.user.is_user_anonymous = false;
-                    data.user.is_free_trial_period = true;
-                    data.user.is_existing_subscriber = true;
+                        }];
+                    }
                 }
                 
                 data.success = true;
                 data.code = 200;
-                data.message = "Login successful";
-                
-                injectBadBoyBranding(data);
-                return res.status(200).json(data);
             }
 
-            // If OTP wrong, return original response
-            return res.status(response.status).json(data);
+            injectBadBoyBranding(data);
+            return res.status(200).json(data);
             
         } catch (error) {
-            console.error('❌ Verify OTP Error:', error);
-            
-            // 🔥 FALLBACK - Return success even if API fails
-            return res.status(200).json({
-                success: true,
-                code: 200,
-                message: "Login successful",
-                access_token: PREMIUM.authorization.replace('jwt ', ''),
-                refresh_token: PREMIUM.authorization.replace('jwt ', ''),
-                user: {
-                    id: 374980483,
-                    name: "BAD BOY User",
-                    has_premium: true,
-                    is_user_anonymous: false,
-                    is_free_trial_period: true,
-                    is_existing_subscriber: true,
-                    user_subscriptions: [{
-                        status: "Active",
-                        valid_till: "2099-12-31",
-                        plan_name: "Lifetime Premium [BAD BOY]",
-                        is_recurring: false,
-                        plan_amount: 0
-                    }]
-                }
-            });
+            console.error('❌ OTP-LESS Error:', error);
+            return res.status(500).json({ error: error.message });
         }
     }
 
@@ -228,18 +298,27 @@ export default async function handler(req, res) {
 
             let body;
             if (method !== 'GET' && method !== 'HEAD' && req.body) {
-                body = typeof req.body === 'string' ? req.body : new URLSearchParams(req.body).toString();
+                if (typeof req.body === 'string') {
+                    body = req.body;
+                } else if (typeof req.body === 'object') {
+                    body = new URLSearchParams(req.body).toString();
+                }
             }
 
             const fetchOptions = {
                 method: method,
                 headers: headers,
-                body: body,
                 timeout: 30000,
             };
 
+            if (body) {
+                fetchOptions.body = body;
+            }
+
             const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
             let data = await response.json();
+            
+            console.log('📥 Session Response:', JSON.stringify(data, null, 2));
 
             if (data.user) {
                 data.user.has_premium = true;
@@ -276,6 +355,8 @@ export default async function handler(req, res) {
     // ==========================================
     if (urlPath.includes('/api/v1.0/config/master/android/')) {
         try {
+            console.log('⚙️ MASTER CONFIG REQUEST');
+            
             const headers = buildPremiumHeaders();
             const response = await fetch(targetBaseUrl + urlPath, {
                 method: method,
@@ -481,12 +562,13 @@ export default async function handler(req, res) {
         return res.status(200).json({
             status: "🔥 Proxy is Running",
             brand: "BAD BOY EDITION",
-            message: "OTP Fixed! App won't crash!",
+            message: "OTP Verification Fixed! Sending raw body to API",
             endpoints: {
-                send_otp: "POST /api/v1.0/users/auth/",
+                send_otp: "POST /api/v1.0/users/auth/send-otp/",
                 verify_otp: "POST /api/v1.0/users/auth/verify-otp/",
                 session: "/api/v1.1/users/get-session-token/",
-                config: "/api/v1.0/config/master/android/"
+                config: "/api/v1.0/config/master/android/",
+                home: "/api/v3/home/all/?page=1"
             }
         });
     }
