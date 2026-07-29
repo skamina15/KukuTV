@@ -1,6 +1,6 @@
 // ==========================================
-// 🎯 KUKU FM PROXY (BAD BOY EDITION) v2.0
-// 🔥 PREMIUM PERSISTENCE FIXED
+// 🎯 KUKU FM PROXY (BAD BOY EDITION) v3.0
+// 🔥 FORCE PREMIUM OVERRIDE - IGNORE REAL DATA
 // ==========================================
 
 export default async function handler(req, res) {
@@ -24,6 +24,9 @@ export default async function handler(req, res) {
         build_number: "5080703",
         client_country: "IN",
         lang: "english",
+        user_id: 352010086,
+        profile_id: 21015261,
+        unique_id: "aee64481-42db-42fb-861a-814f5c6b420e"
     };
 
     // ==========================================
@@ -47,115 +50,99 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🛠 BUILD PREMIUM HEADERS
+    // 🔥 COMPLETE PREMIUM USER OBJECT
     // ==========================================
-    function buildPremiumHeaders() {
+    function getPremiumUserObject() {
         return {
-            'authorization': PREMIUM.authorization,
-            'device-id': PREMIUM.device_id,
-            'advertising-id': PREMIUM.advertising_id,
-            'android_id': PREMIUM.android_id,
-            'user-agent': PREMIUM.user_agent,
-            'package-name': PREMIUM.package_name,
-            'app-version': PREMIUM.app_version,
-            'build-number': PREMIUM.build_number,
-            'client-country': PREMIUM.client_country,
-            'lang': PREMIUM.lang,
-            'install-source': 'google_play',
-            'content-type': 'application/json; charset=UTF-8',
-            'accept': 'application/json',
-            'accept-charset': 'UTF-8',
+            id: PREMIUM.user_id,
+            user_id: PREMIUM.user_id,
+            profile_id: PREMIUM.profile_id,
+            unique_id: PREMIUM.unique_id,
+            name: "BAD BOY Premium [ BAD BOY ]",
+            email: "badboy@premium.com",
+            mobile: "9999999999",
+            has_premium: true,
+            is_premium: true,
+            premium: true,
+            is_user_anonymous: false,
+            is_free_trial_period: true,
+            is_existing_subscriber: true,
+            is_subscribed: true,
+            is_trial: false,
+            subscription_status: "Active",
+            subscription_type: "premium",
+            subscription_plan: "Lifetime Premium",
+            subscription_valid_till: "2099-12-31",
+            user_subscriptions: [{
+                id: "sub_" + Date.now(),
+                status: "Active",
+                valid_till: "2099-12-31",
+                plan_name: "Lifetime [ BAD BOY ] Premium",
+                plan_id: "premium_lifetime",
+                is_recurring: false,
+                plan_amount: 0,
+                subscription_id: "BB_" + Date.now()
+            }],
+            active_subscriptions: [{
+                id: "sub_" + Date.now(),
+                status: "Active",
+                valid_till: "2099-12-31",
+                plan_name: "Lifetime [ BAD BOY ] Premium",
+                plan_id: "premium_lifetime",
+                is_recurring: false,
+                plan_amount: 0
+            }],
+            is_active: true,
+            is_verified: true,
+            is_email_verified: true,
+            is_mobile_verified: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            bio: "🔥 Unlimited Premium Access [ BAD BOY ]",
+            avatar: "https://ui-avatars.com/api/?name=BAD+BOY&background=ff0000&color=fff&size=128",
+            profile_pic: "https://ui-avatars.com/api/?name=BAD+BOY&background=ff0000&color=fff&size=128"
         };
     }
 
     // ==========================================
-    // 🔥 FORCE PREMIUM ON ANY USER DATA
+    // 🔥 COMPLETE PREMIUM RESPONSE
     // ==========================================
-    function forcePremiumOnUserData(data) {
-        if (!data) return data;
+    function getPremiumResponse(originalData = {}) {
+        const user = getPremiumUserObject();
         
-        // Force premium on main user object
-        if (data.user) {
-            data.user.has_premium = true;
-            data.user.is_user_anonymous = false;
-            data.user.is_free_trial_period = true;
-            data.user.is_existing_subscriber = true;
-            data.user.premium = true;
-            data.user.is_premium = true;
-            
-            // Force subscription
-            if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
-                data.user.user_subscriptions = [{
-                    status: "Active",
-                    valid_till: "2099-12-31",
-                    plan_name: "Lifetime [ BAD BOY ] Premium",
-                    is_recurring: false,
-                    plan_amount: 0,
-                    plan_id: "premium_lifetime",
-                    subscription_id: "BB_" + Date.now()
-                }];
-            } else {
-                data.user.user_subscriptions.forEach(sub => {
-                    sub.status = "Active";
-                    sub.valid_till = "2099-12-31";
-                    sub.plan_name = "Lifetime [ BAD BOY ] Premium";
-                    sub.is_recurring = false;
-                    sub.plan_amount = 0;
-                });
-            }
-        }
+        // Preserve any original data but override user
+        const response = {
+            success: true,
+            code: 200,
+            message: "Success [ BAD BOY ]",
+            access_token: PREMIUM.authorization.replace('jwt ', ''),
+            refresh_token: PREMIUM.authorization.replace('jwt ', ''),
+            token: PREMIUM.authorization.replace('jwt ', ''),
+            user: user,
+            user_data: {
+                ...user,
+                user: user
+            },
+            data: {
+                ...originalData.data,
+                user: user
+            },
+            is_premium: true,
+            has_premium: true,
+            premium: true
+        };
         
-        // Force on user_data
-        if (data.user_data) {
-            data.user_data.has_premium = true;
-            data.user_data.is_anonymous = false;
-            data.user_data.is_existing_subscriber = true;
-            data.user_data.premium = true;
-            
-            if (data.user_data.user) {
-                data.user_data.user.has_premium = true;
-                data.user_data.user.is_free_trial_period = true;
-                data.user_data.user.is_existing_subscriber = true;
-                data.user_data.user.premium = true;
-                
-                if (!data.user_data.user.user_subscriptions || data.user_data.user.user_subscriptions.length === 0) {
-                    data.user_data.user.user_subscriptions = [{
-                        status: "Active",
-                        valid_till: "2099-12-31",
-                        plan_name: "Lifetime [ BAD BOY ] Premium",
-                        is_recurring: false,
-                        plan_amount: 0
-                    }];
-                }
-            }
-        }
+        // If original has these, keep them but override user data
+        if (originalData.config) response.config = originalData.config;
+        if (originalData.settings) response.settings = originalData.settings;
+        if (originalData.home) response.home = originalData.home;
+        if (originalData.shows) response.shows = originalData.shows;
         
-        // Force on any object with user-like structure
-        if (data.data && data.data.user) {
-            data.data.user.has_premium = true;
-            data.data.user.is_premium = true;
-            data.data.user.premium = true;
-        }
-        
-        return data;
+        return response;
     }
 
     // ==========================================
-    // 🔥 FORCE TOKENS ON ANY RESPONSE
-    // ==========================================
-    function forceTokens(data) {
-        if (data) {
-            data.access_token = PREMIUM.authorization.replace('jwt ', '');
-            data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
-            data.token = PREMIUM.authorization.replace('jwt ', '');
-            data.success = true;
-            data.code = 200;
-        }
-        return data;
-    }
-
-    // ==========================================
-    // 🔥 NEW: SEND OTP HANDLER
+    // 🔥 SEND OTP HANDLER
     // ==========================================
     if (urlPath.includes('/api/v1.0/users/auth/send-otp/')) {
         try {
@@ -184,10 +171,11 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔥 NEW: VERIFY OTP HANDLER - MAIN FIX
+    // 🔥 VERIFY OTP - COMPLETE OVERRIDE
     // ==========================================
     if (urlPath.includes('/api/v1.0/users/auth/verify-otp/')) {
         try {
+            // Try to get real response but we'll override it completely
             const headers = { ...req.headers };
             delete headers['accept-encoding'];
             delete headers['content-length'];
@@ -204,74 +192,23 @@ export default async function handler(req, res) {
             }
 
             const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
-            let data = await response.json();
-
-            data = data || {};
+            let realData = await response.json();
             
-            // Force premium and tokens
-            data = forcePremiumOnUserData(data);
-            data = forceTokens(data);
+            // 🔥 COMPLETE OVERRIDE - Ignore real user data
+            const premiumResponse = getPremiumResponse(realData);
+            premiumResponse.message = "Login successful [ BAD BOY ]";
             
-            // Ensure user exists
-            if (!data.user) {
-                data.user = {};
-            }
-            
-            // Force premium status
-            data.user.has_premium = true;
-            data.user.is_user_anonymous = false;
-            data.user.is_free_trial_period = true;
-            data.user.is_existing_subscriber = true;
-            data.user.premium = true;
-            data.user.is_premium = true;
-            
-            // Add subscription if missing
-            if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
-                data.user.user_subscriptions = [{
-                    status: "Active",
-                    valid_till: "2099-12-31",
-                    plan_name: "Lifetime [ BAD BOY ] Premium",
-                    is_recurring: false,
-                    plan_amount: 0
-                }];
-            }
-            
-            // Force success
-            data.success = true;
-            data.code = 200;
-            data.message = "Login successful [ BAD BOY ]";
-            
-            injectBadBoyBranding(data);
-            return res.status(200).json(data);
+            injectBadBoyBranding(premiumResponse);
+            return res.status(200).json(premiumResponse);
             
         } catch (error) {
-            return res.status(200).json({
-                success: true,
-                code: 200,
-                message: "Login successful [ BAD BOY ]",
-                access_token: PREMIUM.authorization.replace('jwt ', ''),
-                refresh_token: PREMIUM.authorization.replace('jwt ', ''),
-                user: {
-                    has_premium: true,
-                    is_user_anonymous: false,
-                    is_free_trial_period: true,
-                    is_existing_subscriber: true,
-                    premium: true,
-                    is_premium: true,
-                    user_subscriptions: [{
-                        status: "Active",
-                        valid_till: "2099-12-31",
-                        plan_name: "Lifetime [ BAD BOY ] Premium",
-                        is_recurring: false,
-                        plan_amount: 0
-                    }]
-                }
-            });
+            // Return pure premium response on error
+            return res.status(200).json(getPremiumResponse());
         }
     }
 
     // ==========================================
-    // 🔥 FIXED: GET SESSION TOKEN - PERSISTENT PREMIUM
+    // 🔥 GET SESSION TOKEN - COMPLETE OVERRIDE
     // ==========================================
     if (urlPath.includes('/api/v1.1/users/get-session-token/')) {
         try {
@@ -291,163 +228,97 @@ export default async function handler(req, res) {
             }
 
             const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
-            let data = await response.json();
+            let realData = await response.json();
 
-            // 🔥 FORCE PREMIUM ON EVERY RESPONSE
-            data = forcePremiumOnUserData(data);
-            data = forceTokens(data);
+            // 🔥 COMPLETE OVERRIDE - Ignore real user data
+            const premiumResponse = getPremiumResponse(realData);
             
-            // Ensure user exists with premium
-            if (!data.user) {
-                data.user = {};
-            }
+            // Preserve any non-user data
+            if (realData.config) premiumResponse.config = realData.config;
+            if (realData.settings) premiumResponse.settings = realData.settings;
             
-            data.user.has_premium = true;
-            data.user.is_user_anonymous = false;
-            data.user.is_free_trial_period = true;
-            data.user.is_existing_subscriber = true;
-            data.user.premium = true;
-            data.user.is_premium = true;
-            
-            if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
-                data.user.user_subscriptions = [{
-                    status: "Active",
-                    valid_till: "2099-12-31",
-                    plan_name: "Lifetime [ BAD BOY ] Premium",
-                    is_recurring: false,
-                    plan_amount: 0
-                }];
-            } else {
-                data.user.user_subscriptions.forEach(sub => {
-                    sub.status = "Active";
-                    sub.valid_till = "2099-12-31";
-                    sub.plan_name = "Lifetime [ BAD BOY ] Premium";
-                    sub.is_recurring = false;
-                    sub.plan_amount = 0;
-                });
-            }
-            
-            // 🔥 BRANDING
-            if (data.user && data.user.name) {
-                if (!data.user.name.includes('[ BAD BOY ]')) {
-                    data.user.name = data.user.name + ' [ BAD BOY ]';
-                }
-            }
-            if (data.user && data.user.bio) {
-                if (!data.user.bio.includes('[ BAD BOY ]')) {
-                    data.user.bio = data.user.bio + ' [ BAD BOY ]';
-                }
-            }
-
-            data.access_token = PREMIUM.authorization.replace('jwt ', '');
-            data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
-            data.code = 200;
-            data.success = true;
-
-            injectBadBoyBranding(data);
-            return res.status(200).json(data);
+            injectBadBoyBranding(premiumResponse);
+            return res.status(200).json(premiumResponse);
             
         } catch (error) {
-            return res.status(200).json({
-                success: true,
-                code: 200,
-                access_token: PREMIUM.authorization.replace('jwt ', ''),
-                refresh_token: PREMIUM.authorization.replace('jwt ', ''),
-                user: {
-                    has_premium: true,
-                    is_user_anonymous: false,
-                    is_free_trial_period: true,
-                    is_existing_subscriber: true,
-                    premium: true,
-                    is_premium: true,
-                    name: "BAD BOY Premium [ BAD BOY ]",
-                    user_subscriptions: [{
-                        status: "Active",
-                        valid_till: "2099-12-31",
-                        plan_name: "Lifetime [ BAD BOY ] Premium",
-                        is_recurring: false,
-                        plan_amount: 0
-                    }]
-                }
-            });
+            return res.status(200).json(getPremiumResponse());
         }
     }
 
     // ==========================================
-    // 🔥 FIXED: MASTER CONFIG - PREMIUM SPOOF
+    // 🔥 MASTER CONFIG - COMPLETE OVERRIDE
     // ==========================================
     if (urlPath.includes('/api/v1.0/config/master/android/')) {
         try {
-            const headers = buildPremiumHeaders();
+            const headers = {
+                ...buildPremiumHeaders(),
+                'authorization': PREMIUM.authorization
+            };
             const response = await fetch(targetBaseUrl + urlPath, {
                 method: method,
                 headers: headers
             });
-            let data = await response.json();
+            let realData = await response.json();
 
-            // Force premium on all user data
-            data = forcePremiumOnUserData(data);
-            data = forceTokens(data);
-
-            if (data.user_data) {
-                data.user_data.has_premium = true;
-                data.user_data.is_anonymous = false;
-                data.user_data.is_existing_subscriber = true;
-                data.user_data.premium = true;
-                data.user_data.is_premium = true;
-                
-                if (data.user_data.user) {
-                    data.user_data.user.has_premium = true;
-                    data.user_data.user.is_free_trial_period = true;
-                    data.user_data.user.is_existing_subscriber = true;
-                    data.user_data.user.premium = true;
-                    data.user_data.user.is_premium = true;
-                    
-                    if (data.user_data.user.user_subscriptions && 
-                        data.user_data.user.user_subscriptions.length > 0) {
-                        data.user_data.user.user_subscriptions.forEach(sub => {
-                            sub.status = "Active";
-                            sub.valid_till = "2099-12-31";
-                            sub.plan_name = "Lifetime [ BAD BOY ] Premium";
-                            sub.is_recurring = false;
-                            sub.plan_amount = 0;
-                        });
-                    } else {
-                        data.user_data.user.user_subscriptions = [{
-                            status: "Active",
-                            valid_till: "2099-12-31",
-                            plan_name: "Lifetime [ BAD BOY ] Premium",
-                            is_recurring: false,
-                            plan_amount: 0
-                        }];
-                    }
-                }
-            }
-
-            injectBadBoyBranding(data);
-            return res.status(200).json(data);
+            // 🔥 COMPLETE OVERRIDE
+            const premiumResponse = getPremiumResponse(realData);
+            
+            // Preserve config data
+            if (realData.config) premiumResponse.config = realData.config;
+            if (realData.settings) premiumResponse.settings = realData.settings;
+            if (realData.features) premiumResponse.features = realData.features;
+            if (realData.app_config) premiumResponse.app_config = realData.app_config;
+            
+            // Override user_data completely
+            premiumResponse.user_data = getPremiumUserObject();
+            premiumResponse.user_data.user = getPremiumUserObject();
+            
+            injectBadBoyBranding(premiumResponse);
+            return res.status(200).json(premiumResponse);
             
         } catch (error) {
-            return res.status(500).json({ error: error.message });
+            return res.status(200).json(getPremiumResponse());
         }
     }
 
     // ==========================================
-    // 🔥 FIXED: ANY ENDPOINT WITH USER DATA
+    // 🛠 BUILD PREMIUM HEADERS
     // ==========================================
-    // This catches any endpoint that might contain user data
+    function buildPremiumHeaders() {
+        return {
+            'authorization': PREMIUM.authorization,
+            'device-id': PREMIUM.device_id,
+            'advertising-id': PREMIUM.advertising_id,
+            'android_id': PREMIUM.android_id,
+            'user-agent': PREMIUM.user_agent,
+            'package-name': PREMIUM.package_name,
+            'app-version': PREMIUM.app_version,
+            'build-number': PREMIUM.build_number,
+            'client-country': PREMIUM.client_country,
+            'lang': PREMIUM.lang,
+            'install-source': 'google_play',
+            'content-type': 'application/json; charset=UTF-8',
+            'accept': 'application/json',
+            'accept-charset': 'UTF-8',
+        };
+    }
+
+    // ==========================================
+    // 🔥 CATCH ALL USER ENDPOINTS - COMPLETE OVERRIDE
+    // ==========================================
     const userDataEndpoints = [
-        '/api/v1.0/user/',
-        '/api/v1.1/user/',
-        '/api/v2/user/',
-        '/api/v3/user/',
-        '/api/v1.0/profile/',
-        '/api/v1.0/me/',
-        '/api/v1.0/account/',
-        '/api/v1.0/subscription/',
-        '/api/v1.0/premium/',
-        '/api/v1.0/user/subscription/',
-        '/api/v1.0/user/profile/',
+        '/user/',
+        '/profile/',
+        '/me/',
+        '/account/',
+        '/subscription/',
+        '/premium/',
+        '/user/profile/',
+        '/user/subscription/',
+        '/users/me/',
+        '/users/profile/',
+        '/get-user/',
+        '/get-profile/'
     ];
 
     const shouldForcePremium = userDataEndpoints.some(endpoint => urlPath.includes(endpoint));
@@ -459,41 +330,21 @@ export default async function handler(req, res) {
                 method: method,
                 headers: headers
             });
-            let data = await response.json();
+            let realData = await response.json();
 
-            // Force premium on all user data
-            data = forcePremiumOnUserData(data);
-            data = forceTokens(data);
-
-            injectBadBoyBranding(data);
-            return res.status(200).json(data);
+            // 🔥 COMPLETE OVERRIDE
+            const premiumResponse = getPremiumResponse(realData);
+            
+            injectBadBoyBranding(premiumResponse);
+            return res.status(200).json(premiumResponse);
+            
         } catch (error) {
-            // Return premium mock on error
-            return res.status(200).json({
-                success: true,
-                code: 200,
-                message: "Premium Active [ BAD BOY ]",
-                user: {
-                    has_premium: true,
-                    is_user_anonymous: false,
-                    is_free_trial_period: true,
-                    is_existing_subscriber: true,
-                    premium: true,
-                    is_premium: true,
-                    user_subscriptions: [{
-                        status: "Active",
-                        valid_till: "2099-12-31",
-                        plan_name: "Lifetime [ BAD BOY ] Premium",
-                        is_recurring: false,
-                        plan_amount: 0
-                    }]
-                }
-            });
+            return res.status(200).json(getPremiumResponse());
         }
     }
 
     // ==========================================
-    // 3️⃣ HOME / SHOW DATA - BRANDING
+    // 🏠 HOME / SHOW DATA - Keep original but add branding
     // ==========================================
     if (urlPath.includes('/api/v3/home/') || urlPath.includes('/api/v2/home/') || 
         urlPath.includes('/api/v1.0/show/') || urlPath.includes('/category/') ||
@@ -506,6 +357,7 @@ export default async function handler(req, res) {
             });
             let data = await response.json();
 
+            // Don't override home data, just add branding
             injectBadBoyBranding(data);
             return res.status(200).json(data);
         } catch (error) {
@@ -514,28 +366,33 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 4️⃣ UNLOCK / ORDER / PAYMENT FAKE
+    // 🔓 UNLOCK / ORDER / PAYMENT - Fake success
     // ==========================================
     if (urlPath.includes('/unlock') || urlPath.includes('/order') || 
         urlPath.includes('/pay') || urlPath.includes('/payment') || 
         urlPath.includes('/purchase')) {
         return res.status(200).json({
             code: 200,
-            message: "Success [ BAD BOY ]",
+            message: "Premium Unlocked [ BAD BOY ]",
             data: {
                 orderId: "BB_" + Date.now(),
                 status: "SUCCESS",
                 unlockTime: Date.now(),
                 isPremium: true,
                 has_premium: true,
-                premium: true
+                premium: true,
+                subscription: {
+                    status: "Active",
+                    valid_till: "2099-12-31",
+                    plan_name: "Lifetime [ BAD BOY ] Premium"
+                }
             },
             success: true
         });
     }
 
     // ==========================================
-    // 5️⃣ ANALYTICS / TRACKING BLOCK
+    // 📊 ANALYTICS / TRACKING BLOCK
     // ==========================================
     if (urlPath.includes('/events/') || urlPath.includes('web-events')) {
         return res.status(201).json({ message: "Event created successfully", success: true });
@@ -627,13 +484,14 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 6️⃣ ROOT PATH
+    // 🏠 ROOT PATH
     // ==========================================
     if (urlPath === '/' || urlPath === '') {
         return res.status(200).json({
-            status: "🔥 Proxy is Running",
-            brand: "BAD BOY EDITION v2.0",
-            message: "PREMIUM PERSISTENCE FIXED! App will stay premium.",
+            status: "🔥 KUKU FM PROXY RUNNING",
+            brand: "BAD BOY EDITION v3.0",
+            message: "🚀 COMPLETE USER DATA OVERRIDE - Premium is permanent!",
+            user: getPremiumUserObject(),
             endpoints: {
                 send_otp: "POST /api/v1.0/users/auth/send-otp/",
                 verify_otp: "POST /api/v1.0/users/auth/verify-otp/",
@@ -645,7 +503,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔄 BAAKI SARI REQUESTS FORWARD (TOKEN INJECTED)
+    // 🔄 ALL OTHER REQUESTS - FORWARD WITH PREMIUM HEADERS
     // ==========================================
     try {
         const headers = buildPremiumHeaders();
@@ -669,10 +527,15 @@ export default async function handler(req, res) {
         if (contentType.includes('application/json')) {
             let data = await response.json();
             
-            // Force premium on any JSON response
-            data = forcePremiumOnUserData(data);
-            data = forceTokens(data);
+            // Check if this response contains user data
+            if (data.user || data.user_data || data.data?.user) {
+                // 🔥 COMPLETE OVERRIDE
+                const premiumResponse = getPremiumResponse(data);
+                injectBadBoyBranding(premiumResponse);
+                return res.status(response.status).json(premiumResponse);
+            }
             
+            // Otherwise just add branding
             injectBadBoyBranding(data);
             return res.status(response.status).json(data);
         } 
