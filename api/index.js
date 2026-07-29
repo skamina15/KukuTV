@@ -14,7 +14,6 @@ export default async function handler(req, res) {
     // 🔥 HARDCORE PREMIUM TOKEN + CREDENTIALS
     // ==========================================
     const PREMIUM = {
-        // 🔥 YEH TOKEN HAR REQUEST ME INJECT HOGA
         authorization: "jwt eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozNzQ5ODA0ODMsImV4cCI6MTc4NTMyMDc0MSwic3ViX3Byb2ZpbGVfaWQiOjQ5NDQ4MzE1LCJ1bmlxdWVfaWQiOiI3MDQ3YmJhYS1kZWRiLTQ2N2MtYTVmZC1hY2I1ZjRhMjg2MWIifQ.QZ97fL0LNPULpYs4WcUYbWBC3tY6astiSpmP8yBHYwfFD2Ay9EOy6ydiTCCME7PxgCTstfsb-nPGtdrSSg8E-A",
         device_id: "61304354-728a-4058-8586-4607eefa339e",
         android_id: "690fc583b739834",
@@ -52,7 +51,6 @@ export default async function handler(req, res) {
     // ==========================================
     function buildPremiumHeaders() {
         return {
-            // 🔥 HAR REQUEST ME YEH TOKEN JAYEGA
             'authorization': PREMIUM.authorization,
             'device-id': PREMIUM.device_id,
             'advertising-id': PREMIUM.advertising_id,
@@ -71,11 +69,52 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
+    // 🔥 OTP-LESS LOGIN - FIXED
+    // ==========================================
+    if (urlPath.includes('/api/v1.0/users/otp-less/')) {
+        try {
+            const headers = { ...req.headers };
+            delete headers['accept-encoding'];
+            delete headers['content-length'];
+            delete headers['host'];
+
+            const fetchOptions = {
+                method: method,
+                headers: headers,
+                timeout: 30000,
+            };
+
+            if (req.body) {
+                fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+            }
+
+            const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
+            let data = await response.json();
+
+            // 🔥 INJECT PREMIUM TOKEN IN RESPONSE
+            if (data) {
+                data.access_token = PREMIUM.authorization.replace('jwt ', '');
+                data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
+                
+                if (data.user) {
+                    data.user.has_premium = true;
+                    data.user.is_user_anonymous = false;
+                    data.user.is_free_trial_period = true;
+                }
+            }
+
+            injectBadBoyBranding(data);
+            return res.status(response.status).json(data);
+        } catch (error) {
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // ==========================================
     // 1️⃣ GET SESSION TOKEN - PREMIUM INJECT 🔥
     // ==========================================
     if (urlPath.includes('/api/v1.1/users/get-session-token/')) {
         try {
-            // Original request forward karo
             const headers = { ...req.headers };
             delete headers['accept-encoding'];
             delete headers['content-length'];
@@ -229,6 +268,9 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
     }
 
+    // ==========================================
+    // 6️⃣ OTPLESS HANDLER
+    // ==========================================
     if (urlPath.includes('otpless') || urlPath.includes('user-auth.otpless.app')) {
         try {
             const headers = { ...req.headers };
@@ -254,6 +296,9 @@ export default async function handler(req, res) {
         }
     }
 
+    // ==========================================
+    // 7️⃣ FIREBASE HANDLER
+    // ==========================================
     if (urlPath.includes('firebase') || urlPath.includes('googleapis.com')) {
         try {
             const headers = { ...req.headers };
@@ -279,6 +324,9 @@ export default async function handler(req, res) {
         }
     }
 
+    // ==========================================
+    // 8️⃣ CLOUDFRONT HANDLER
+    // ==========================================
     if (urlPath.includes('cloudfront.net')) {
         try {
             const response = await fetch(urlPath);
@@ -293,7 +341,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 6️⃣ ROOT PATH
+    // 9️⃣ ROOT PATH
     // ==========================================
     if (urlPath === '/' || urlPath === '') {
         return res.status(200).json({
