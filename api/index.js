@@ -1,6 +1,6 @@
 // ==========================================
 // 🎯 KUKU FM PROXY (BAD BOY EDITION) 
-// 🔥 FINAL FIX - OTP VERIFICATION WORKING
+// 🔥 NO BODY CORRUPTION - RAW BODY PASS
 // ==========================================
 
 export default async function handler(req, res) {
@@ -69,20 +69,33 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
+    // 🔥 HELPER - GET RAW BODY
+    // ==========================================
+    function getRawBody(req) {
+        // If body is already a Buffer or string, use it
+        if (req.body) {
+            if (Buffer.isBuffer(req.body)) {
+                return req.body;
+            }
+            if (typeof req.body === 'string') {
+                return req.body;
+            }
+            if (typeof req.body === 'object') {
+                return JSON.stringify(req.body);
+            }
+        }
+        return null;
+    }
+
+    // ==========================================
     // 🔥 SEND OTP - /api/v1.0/users/auth/send-otp/
     // ==========================================
     if (urlPath.includes('/api/v1.0/users/auth/send-otp/')) {
         try {
             console.log('📱 SEND OTP REQUEST');
             
-            // IMPORTANT: Get raw body as buffer
-            let bodyBuffer = req.body;
-            if (typeof bodyBuffer === 'string') {
-                bodyBuffer = Buffer.from(bodyBuffer);
-            }
-
-            console.log('📤 Send OTP Body Type:', typeof req.body);
-            console.log('📤 Send OTP Body:', req.body);
+            const rawBody = getRawBody(req);
+            console.log('📤 Raw Body:', rawBody);
 
             const headers = { ...req.headers };
             delete headers['accept-encoding'];
@@ -95,9 +108,8 @@ export default async function handler(req, res) {
                 timeout: 30000,
             };
 
-            // Send body exactly as received
-            if (bodyBuffer) {
-                fetchOptions.body = bodyBuffer;
+            if (rawBody) {
+                fetchOptions.body = rawBody;
             }
 
             const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
@@ -123,27 +135,15 @@ export default async function handler(req, res) {
         try {
             console.log('🔐 VERIFY OTP REQUEST');
             
-            // IMPORTANT: Get raw body as buffer - DON'T MODIFY
-            let bodyBuffer = req.body;
-            
-            // If it's a string, convert to buffer
-            if (typeof bodyBuffer === 'string') {
-                bodyBuffer = Buffer.from(bodyBuffer);
-            }
-            // If it's an object, stringify it
-            else if (typeof bodyBuffer === 'object' && bodyBuffer !== null) {
-                bodyBuffer = Buffer.from(JSON.stringify(bodyBuffer));
-            }
-
-            console.log('📤 Verify OTP Body Type:', typeof req.body);
-            console.log('📤 Verify OTP Body (raw):', req.body);
+            const rawBody = getRawBody(req);
+            console.log('📤 Raw Body:', rawBody);
 
             const headers = { ...req.headers };
             delete headers['accept-encoding'];
             delete headers['content-length'];
             delete headers['host'];
             
-            // Preserve content-type
+            // Ensure correct content-type
             headers['content-type'] = 'application/json; charset=UTF-8';
 
             const fetchOptions = {
@@ -152,12 +152,12 @@ export default async function handler(req, res) {
                 timeout: 30000,
             };
 
-            // Send body exactly as received
-            if (bodyBuffer) {
-                fetchOptions.body = bodyBuffer;
+            if (rawBody) {
+                fetchOptions.body = rawBody;
             }
 
             console.log('📤 Forwarding to:', targetBaseUrl + urlPath);
+            console.log('📤 Headers:', JSON.stringify(headers, null, 2));
             
             const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
             const responseText = await response.text();
@@ -171,10 +171,10 @@ export default async function handler(req, res) {
                 data = { raw: responseText };
             }
             
-            console.log('📥 Verify OTP Response:', JSON.stringify(data, null, 2));
+            console.log('📥 Parsed Response:', JSON.stringify(data, null, 2));
 
             // Check if verification was successful
-            if (!data.error_code && data.message !== 'INVALID_REQUEST') {
+            if (!data.error_code) {
                 // 🔥 SUCCESS - INJECT PREMIUM
                 data.access_token = PREMIUM.authorization.replace('jwt ', '');
                 data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
@@ -204,7 +204,7 @@ export default async function handler(req, res) {
                 injectBadBoyBranding(data);
                 return res.status(200).json(data);
             } else {
-                // OTP is wrong or invalid - return actual error
+                // OTP is wrong - return actual error
                 console.log('❌ OTP Verification Failed:', data.error_message || data.message);
                 return res.status(200).json(data);
             }
@@ -219,18 +219,13 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔥 OTP-LESS LOGIN (Alternative endpoint)
+    // 🔥 OTP-LESS LOGIN
     // ==========================================
     if (urlPath.includes('/api/v1.0/users/otp-less/')) {
         try {
             console.log('🔐 OTP-LESS REQUEST');
             
-            let bodyBuffer = req.body;
-            if (typeof bodyBuffer === 'string') {
-                bodyBuffer = Buffer.from(bodyBuffer);
-            } else if (typeof bodyBuffer === 'object' && bodyBuffer !== null) {
-                bodyBuffer = Buffer.from(JSON.stringify(bodyBuffer));
-            }
+            const rawBody = getRawBody(req);
 
             const headers = { ...req.headers };
             delete headers['accept-encoding'];
@@ -243,8 +238,8 @@ export default async function handler(req, res) {
                 timeout: 30000,
             };
 
-            if (bodyBuffer) {
-                fetchOptions.body = bodyBuffer;
+            if (rawBody) {
+                fetchOptions.body = rawBody;
             }
 
             const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
@@ -296,13 +291,9 @@ export default async function handler(req, res) {
             delete headers['content-length'];
             delete headers['host'];
 
-            let body;
+            let body = null;
             if (method !== 'GET' && method !== 'HEAD' && req.body) {
-                if (typeof req.body === 'string') {
-                    body = req.body;
-                } else if (typeof req.body === 'object') {
-                    body = new URLSearchParams(req.body).toString();
-                }
+                body = getRawBody(req);
             }
 
             const fetchOptions = {
@@ -562,7 +553,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
             status: "🔥 Proxy is Running",
             brand: "BAD BOY EDITION",
-            message: "OTP Verification Fixed! Sending raw body to API",
+            message: "OTP Verification Fixed! Raw body preserved!",
             endpoints: {
                 send_otp: "POST /api/v1.0/users/auth/send-otp/",
                 verify_otp: "POST /api/v1.0/users/auth/verify-otp/",
@@ -589,7 +580,7 @@ export default async function handler(req, res) {
         };
 
         if (method !== 'GET' && method !== 'HEAD' && req.body) {
-            fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+            fetchOptions.body = getRawBody(req);
         }
 
         const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
