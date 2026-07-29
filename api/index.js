@@ -1,6 +1,6 @@
 // ==========================================
-// 🎯 KUKU FM PROXY (BAD BOY EDITION)
-// 🔥 Hardcoded Premium Token Inject
+// 🎯 KUKU FM PROXY (BAD BOY EDITION) 
+// 🔥 FULLY FIXED OTP LOGIN
 // ==========================================
 
 export default async function handler(req, res) {
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🛠 BUILD PREMIUM HEADERS (TOKEN INJECTED)
+    // 🛠 BUILD PREMIUM HEADERS
     // ==========================================
     function buildPremiumHeaders() {
         return {
@@ -69,10 +69,13 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔥 OTP-LESS LOGIN - FIXED
+    // 🔥 OTP-LESS LOGIN HANDLER - FIXED
     // ==========================================
     if (urlPath.includes('/api/v1.0/users/otp-less/')) {
         try {
+            console.log('🔥 OTP-LESS LOGIN REQUEST RECEIVED');
+            
+            // Forward original request
             const headers = { ...req.headers };
             delete headers['accept-encoding'];
             delete headers['content-length'];
@@ -86,35 +89,60 @@ export default async function handler(req, res) {
 
             if (req.body) {
                 fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+                console.log('📤 OTP Request Body:', fetchOptions.body);
             }
 
             const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
             let data = await response.json();
+            
+            console.log('📥 OTP Response:', JSON.stringify(data, null, 2));
 
-            // 🔥 INJECT PREMIUM TOKEN IN RESPONSE
+            // 🔥 INJECT PREMIUM TOKEN AND USER DATA
             if (data) {
+                // Inject tokens
                 data.access_token = PREMIUM.authorization.replace('jwt ', '');
                 data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
                 
+                // If user exists, mark as premium
                 if (data.user) {
                     data.user.has_premium = true;
                     data.user.is_user_anonymous = false;
                     data.user.is_free_trial_period = true;
+                    data.user.is_existing_subscriber = true;
+                    
+                    // Add subscription if missing
+                    if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
+                        data.user.user_subscriptions = [{
+                            status: "Active",
+                            valid_till: "2099-12-31",
+                            plan_name: "Lifetime Premium [BAD BOY]",
+                            is_recurring: false,
+                            plan_amount: 0,
+                            subscription_id: "BB_" + Date.now()
+                        }];
+                    }
                 }
             }
 
             injectBadBoyBranding(data);
-            return res.status(response.status).json(data);
+            return res.status(200).json(data);
+            
         } catch (error) {
-            return res.status(500).json({ error: error.message });
+            console.error('❌ OTP-LESS Error:', error);
+            return res.status(500).json({ 
+                error: error.message,
+                code: 500
+            });
         }
     }
 
     // ==========================================
-    // 1️⃣ GET SESSION TOKEN - PREMIUM INJECT 🔥
+    // 🔥 GET SESSION TOKEN - FIXED
     // ==========================================
     if (urlPath.includes('/api/v1.1/users/get-session-token/')) {
         try {
+            console.log('🔥 SESSION TOKEN REQUEST RECEIVED');
+            
             const headers = { ...req.headers };
             delete headers['accept-encoding'];
             delete headers['content-length'];
@@ -132,40 +160,46 @@ export default async function handler(req, res) {
 
             const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
             let data = await response.json();
+            
+            console.log('📥 Session Response:', JSON.stringify(data, null, 2));
 
-            // 🔥 PREMIUM INJECT
+            // 🔥 INJECT PREMIUM
             if (data.user) {
                 data.user.has_premium = true;
                 data.user.is_user_anonymous = false;
+                data.user.is_free_trial_period = true;
+                
+                if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
+                    data.user.user_subscriptions = [{
+                        status: "Active",
+                        valid_till: "2099-12-31",
+                        plan_name: "Lifetime Premium [BAD BOY]",
+                        is_recurring: false,
+                        plan_amount: 0
+                    }];
+                }
             }
             
-            // 🔥 BRANDING
-            if (data.user && data.user.name) {
-                if (!data.user.name.includes('[ BAD BOY ]')) {
-                    data.user.name = data.user.name + ' [ BAD BOY ]';
-                }
-            }
-            if (data.user && data.user.bio) {
-                if (!data.user.bio.includes('[ BAD BOY ]')) {
-                    data.user.bio = data.user.bio + ' [ BAD BOY ]';
-                }
-            }
-
-            // 🔥 TOKEN INJECT - Response me bhi token daal do
+            // Inject tokens
             data.access_token = PREMIUM.authorization.replace('jwt ', '');
             data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
 
+            injectBadBoyBranding(data);
             return res.status(200).json(data);
+            
         } catch (error) {
+            console.error('❌ Session Error:', error);
             return res.status(500).json({ error: error.message });
         }
     }
 
     // ==========================================
-    // 2️⃣ MASTER CONFIG - PREMIUM SPOOF 🔥
+    // 🔥 MASTER CONFIG - PREMIUM SPOOF
     // ==========================================
     if (urlPath.includes('/api/v1.0/config/master/android/')) {
         try {
+            console.log('🔥 MASTER CONFIG REQUEST');
+            
             const headers = buildPremiumHeaders();
             const response = await fetch(targetBaseUrl + urlPath, {
                 method: method,
@@ -204,13 +238,15 @@ export default async function handler(req, res) {
 
             injectBadBoyBranding(data);
             return res.status(200).json(data);
+            
         } catch (error) {
+            console.error('❌ Config Error:', error);
             return res.status(500).json({ error: error.message });
         }
     }
 
     // ==========================================
-    // 3️⃣ HOME / SHOW DATA - BRANDING
+    // 🏠 HOME / SHOW DATA - BRANDING
     // ==========================================
     if (urlPath.includes('/api/v3/home/') || urlPath.includes('/api/v2/home/') || 
         urlPath.includes('/api/v1.0/show/') || urlPath.includes('/category/') ||
@@ -225,13 +261,15 @@ export default async function handler(req, res) {
 
             injectBadBoyBranding(data);
             return res.status(200).json(data);
+            
         } catch (error) {
+            console.error('❌ Home Error:', error);
             return res.status(500).json({ error: error.message });
         }
     }
 
     // ==========================================
-    // 4️⃣ UNLOCK / ORDER / PAYMENT FAKE
+    // 🔓 UNLOCK / ORDER / PAYMENT FAKE
     // ==========================================
     if (urlPath.includes('/unlock') || urlPath.includes('/order') || 
         urlPath.includes('/pay') || urlPath.includes('/payment') || 
@@ -250,7 +288,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 5️⃣ ANALYTICS / TRACKING BLOCK
+    // 📊 ANALYTICS / TRACKING BLOCK
     // ==========================================
     if (urlPath.includes('/events/') || urlPath.includes('web-events')) {
         return res.status(201).json({ message: "Event created successfully", success: true });
@@ -269,7 +307,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 6️⃣ OTPLESS HANDLER
+    // 📱 OTPLESS HANDLER
     // ==========================================
     if (urlPath.includes('otpless') || urlPath.includes('user-auth.otpless.app')) {
         try {
@@ -291,13 +329,14 @@ export default async function handler(req, res) {
             const response = await fetch(urlPath, fetchOptions);
             const data = await response.text();
             return res.status(response.status).send(data);
+            
         } catch (e) {
             return res.status(200).json({ status: "success" });
         }
     }
 
     // ==========================================
-    // 7️⃣ FIREBASE HANDLER
+    // 🔥 FIREBASE HANDLER
     // ==========================================
     if (urlPath.includes('firebase') || urlPath.includes('googleapis.com')) {
         try {
@@ -318,14 +357,31 @@ export default async function handler(req, res) {
 
             const response = await fetch(urlPath, fetchOptions);
             const data = await response.text();
+            
+            // Try to parse JSON and inject premium
+            try {
+                const jsonData = JSON.parse(data);
+                if (jsonData && jsonData.idToken) {
+                    jsonData.idToken = PREMIUM.authorization.replace('jwt ', '');
+                    jsonData.refreshToken = PREMIUM.authorization.replace('jwt ', '');
+                    jsonData.expiresIn = "3600";
+                    return res.status(200).json(jsonData);
+                }
+            } catch(e) {}
+            
             return res.status(response.status).send(data);
+            
         } catch (e) {
-            return res.status(200).json({ kind: "identitytoolkit#VerifyCustomTokenResponse", registered: true });
+            return res.status(200).json({ 
+                kind: "identitytoolkit#VerifyCustomTokenResponse", 
+                registered: true,
+                idToken: PREMIUM.authorization.replace('jwt ', '')
+            });
         }
     }
 
     // ==========================================
-    // 8️⃣ CLOUDFRONT HANDLER
+    // ☁️ CLOUDFRONT HANDLER
     // ==========================================
     if (urlPath.includes('cloudfront.net')) {
         try {
@@ -335,20 +391,22 @@ export default async function handler(req, res) {
                 res.setHeader(key, value);
             });
             return res.status(response.status).send(Buffer.from(buffer));
+            
         } catch (e) {
             return res.status(404).send('Not found');
         }
     }
 
     // ==========================================
-    // 9️⃣ ROOT PATH
+    // 🏠 ROOT PATH
     // ==========================================
     if (urlPath === '/' || urlPath === '') {
         return res.status(200).json({
             status: "🔥 Proxy is Running",
             brand: "BAD BOY EDITION",
-            message: "Hardcoded Premium Token Inject Active!",
+            message: "Hardcoded Premium Token Inject Active! OTP Login Fixed!",
             endpoints: {
+                otp_login: "/api/v1.0/users/otp-less/",
                 session: "/api/v1.1/users/get-session-token/",
                 config: "/api/v1.0/config/master/android/",
                 home: "/api/v3/home/all/?page=1"
@@ -357,7 +415,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🔄 BAAKI SARI REQUESTS FORWARD (TOKEN INJECTED)
+    // 🔄 BAAKI SARI REQUESTS FORWARD
     // ==========================================
     try {
         const headers = buildPremiumHeaders();
