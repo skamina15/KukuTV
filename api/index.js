@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     // 🔥 PREMIUM CONFIG
     // ==========================================
     const PREMIUM = {
-        authorization: "jwt eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozNzY1MjU4MjcsImV4cCI6MTc4NTU3NjUxNSwic3ViX3Byb2ZpbGVfaWQiOjUxOTg2NjAxLCJ1bmlxdWVfaWQiOiI0MmQwYmI0ZC1jMzU5LTQ2NmItODcwMy03ZTEyZTY3YmIzOTQifQ.hZcD4xHG8a5nYvsJzzrk8yNxhHXV7_YobX8bw_Z2yA8lfvTqqTFjn_swn3VsCEVSkeajQa2GPL-KC00BDICi-A",
+        authorization: "jwt eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozNTIwMTAwODYsImV4cCI6MTc4NTc0MzU5Niwic3ViX3Byb2ZpbGVfaWQiOjIxMDE1MjYxLCJ1bmlxdWVfaWQiOiIwM2YwZmM5MS01MDdjLTQwYzYtYmUyMy01ODk5YjQ1ODFhYWMifQ.VKy3B_UEGaObFT9RxHDKfi2SY51wQraIe5rFbvo8xjICRjYXSsiBlA67w_cnlz8yMdHpSxagP4Szi8T07dm3Ng",
         device_id: "61304354-728a-4058-8586-4607eefa339e",
         android_id: "690fc583b739834",
         advertising_id: "61304354-728a-4058-8586-4607eefa339e",
