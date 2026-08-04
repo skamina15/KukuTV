@@ -1,742 +1,159 @@
 // ==========================================
-// 🎯 KUKU FM PROXY - SESSION FIX ONLY
+// 🎯 POCKET FM PROXY - FIXED VERSION
 // ==========================================
 
+const APP_CONFIG = {
+    deviceId: 'f9a665481472b85a',
+    sessionId: 'a706bf74-1f2f-47c8-9d9a-26ce685a5e6b',
+    appInstanceId: 'bb17fbeae5cedb6770b1e663f973700b',
+    adId: '61304354-728a-4058-8586-4607eefa339e',
+    uid: '0918e3871e22f7c9ffc6ee4e52e6edd66ff5d42f',
+    profileId: '147853168',
+    fullname: 'Ansari',
+    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjYXRlZ29yeSI6ImFjY2VzcyIsImRldmljZV9pZCI6ImY5YTY2NTQ4MTQ3MmI4NWEiLCJleHBpcnkiOjE3ODU5MjY4NDIsImlhdCI6MTc4NTc1NDA0MiwibG9jYWxlIjoiSU4iLCJwbGF0Zm9ybSI6ImFuZHJvaWQiLCJyb2xlIjoiTGlzdGVuZXIiLCJ0ZW5hbnQiOiJwb2NrZXRfZm0iLCJ1aWQiOiIwOTE4ZTM4NzFlMjJmN2M5ZmZjNmVlNGU1MmU2ZWRkNjZmZjVkNDJmIiwidmVyc2lvbiI6InYyIn0.D9coLr6AwOmSWpt7n4LU1-KdyeOxEmTuUhmj3z6vfAI',
+    appVersion: '2103',
+    versionName: '9.9.0',
+    platform: 'android',
+    platformVersion: '36',
+    userAgent: 'okhttp/4.12.0',
+    branding: ' @Ansari'
+};
+
+// Premium endpoints ko bypass karne ke liye
+const PREMIUM_ENDPOINTS = [
+    '/v2/content_api/show.play_details',
+    '/v3/feed/player',
+    '/v2/content_api/story.detail',
+    '/v2/content_api/episode.detail',
+    '/v2/content_api/show.detail',
+    '/v2/content_api/chapter.detail',
+    '/v2/content_api/track.detail',
+    '/v2/content_api/playlist.detail',
+    '/v2/content_api/audio.detail',
+    '/v2/content_api/media.detail',
+    '/v1/content_api/show.play_details',
+    '/v1/content_api/story.detail',
+    '/v1/content_api/episode.detail'
+];
+
+// DRM content bypass
+const DRM_PATHS = [
+    '/drm-aac/',
+    '/DASH/',
+    '/HLS/',
+    '.m3u8',
+    '.mpd',
+    '.ts',
+    '.aac'
+];
+
 export default async function handler(req, res) {
-    const urlPath = req.headers['x-invoke-path'] || req.url;
+    let urlPath = req.headers['x-invoke-path'] || req.url || '';
+    const cleanPath = urlPath.split('?')[0];
     const method = req.method;
-    const targetBaseUrl = "https://api.kukufm.com";
 
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    // CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', '*');
 
-    res.setHeader('Content-Type', 'application/json; charset=UTF-8');
-
-    // ==========================================
-    // 🔥 PREMIUM CONFIG
-    // ==========================================
-    const PREMIUM = {
-        authorization: "jwt eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozNTIwMTAwODYsImV4cCI6MTc4NTc0MzU5Niwic3ViX3Byb2ZpbGVfaWQiOjIxMDE1MjYxLCJ1bmlxdWVfaWQiOiIwM2YwZmM5MS01MDdjLTQwYzYtYmUyMy01ODk5YjQ1ODFhYWMifQ.VKy3B_UEGaObFT9RxHDKfi2SY51wQraIe5rFbvo8xjICRjYXSsiBlA67w_cnlz8yMdHpSxagP4Szi8T07dm3Ng",
-        device_id: "61304354-728a-4058-8586-4607eefa339e",
-        android_id: "690fc583b739834",
-        advertising_id: "61304354-728a-4058-8586-4607eefa339e",
-        user_agent: "Dalvik/2.1.0 (Linux; U; Android 16; SM-S928B Build/BP4A.251205.006)",
-        package_name: "com.vlv.aravali.reels",
-        app_version: "50807",
-        build_number: "5080703",
-        client_country: "IN",
-        lang: "english",
-        fakeIP: '192.168.1.100'
-    };
-
-    // ==========================================
-    // ⏱️ RATE LIMITER
-    // ==========================================
-    const requestQueue = new Map();
-    const RATE_LIMIT = {
-        windowMs: 500,
-        maxRequests: 2
-    };
-
-    function isRateLimited(ip) {
-        const now = Date.now();
-        const windowStart = now - RATE_LIMIT.windowMs;
-        
-        if (!requestQueue.has(ip)) {
-            requestQueue.set(ip, []);
-        }
-        
-        const requests = requestQueue.get(ip).filter(timestamp => timestamp > windowStart);
-        requests.push(now);
-        requestQueue.set(ip, requests);
-        
-        if (requests.length > RATE_LIMIT.maxRequests) {
-            return true;
-        }
-        return false;
-    }
-
-    function getRandomDelay() {
-        return Math.floor(Math.random() * 300) + 100;
+    if (method === 'OPTIONS') {
+        return res.status(200).end();
     }
 
     // ==========================================
-    // 🎯 IP MASKING
+    // 🔥 PREMIUM CONTENT UNLOCK
     // ==========================================
-    function maskIP(headers) {
-        const ipHeaders = [
-            'x-forwarded-for', 'x-real-ip', 'x-client-ip',
-            'x-original-forwarded-for', 'forwarded', 'cf-connecting-ip',
-            'true-client-ip', 'x-remote-ip', 'x-remote-addr',
-            'remote-addr', 'remote-address', 'client-ip', 'x-true-ip'
-        ];
-        
-        ipHeaders.forEach(header => {
-            if (headers[header]) {
-                delete headers[header];
-            }
-        });
-        
-        headers['x-forwarded-for'] = PREMIUM.fakeIP;
-        headers['x-real-ip'] = PREMIUM.fakeIP;
-        
-        return headers;
-    }
+    const isPremiumEndpoint = PREMIUM_ENDPOINTS.some(endpoint => cleanPath.includes(endpoint));
+    const isDrmContent = DRM_PATHS.some(path => urlPath.includes(path));
 
-    // ==========================================
-    // 🏷️ BRANDING
-    // ==========================================
-    function injectBadBoyBranding(obj) {
-        const targetKeys = ['title', 'name', 'summary', 'description', 'text', 'content', 'label', 'tag_text', 'plan_name', 'subtitle', 'bio'];
-
-        if (typeof obj === 'object' && obj !== null) {
-            for (let key in obj) {
-                if (typeof obj[key] === 'string' && targetKeys.includes(key)) {
-                    if (!obj[key].includes('[ BAD BOY ]')) {
-                        obj[key] = obj[key] + ' [ BAD BOY ]';
-                    }
-                } 
-                else if (typeof obj[key] === 'object') {
-                    injectBadBoyBranding(obj[key]);
-                }
-            }
-        }
-    }
-
-    // ==========================================
-    // 🛠 BUILD PREMIUM HEADERS
-    // ==========================================
-    function buildPremiumHeaders() {
-        return {
-            'authorization': PREMIUM.authorization,
-            'device-id': PREMIUM.device_id,
-            'advertising-id': PREMIUM.advertising_id,
-            'android_id': PREMIUM.android_id,
-            'user-agent': PREMIUM.user_agent,
-            'package-name': PREMIUM.package_name,
-            'app-version': PREMIUM.app_version,
-            'build-number': PREMIUM.build_number,
-            'client-country': PREMIUM.client_country,
-            'lang': PREMIUM.lang,
-            'install-source': 'google_play',
-            'content-type': 'application/json; charset=UTF-8',
-            'accept': 'application/json',
-            'accept-charset': 'UTF-8',
-        };
-    }
-
-    // ==========================================
-    // 🔥 SESSION VALIDATION - ONLY THIS ADDED
-    // ==========================================
-    // Yeh endpoints app check karta hai session ke liye
-    // Agar inme se koi fail hua toh logout ho jata hai
-    if (urlPath.includes('/api/v1.0/users/validate-session') || 
-        urlPath.includes('/api/v1.0/users/me') ||
-        urlPath.includes('/api/v1.0/users/profile') ||
-        urlPath.includes('/api/v1.0/users/check-session') ||
-        urlPath.includes('/api/v1.1/users/validate-session') ||
-        urlPath.includes('/api/v2.0/users/me') ||
-        urlPath.includes('/api/v2.0/users/profile')) {
-        
-        // 🔥 SESSION KO HAMESHA ACTIVE RETURN KARO
-        return res.status(200).json({
-            success: true,
-            code: 200,
-            message: "Session is active",
-            user: {
-                id: 376525827,
-                has_premium: true,
-                is_user_anonymous: false,
-                is_free_trial_period: true,
-                is_existing_subscriber: true,
-                user_subscriptions: [{
-                    status: "Active",
-                    valid_till: "2099-12-31",
-                    plan_name: "Lifetime Premium",
-                    is_recurring: false,
-                    plan_amount: 0
-                }]
-            },
-            session_valid: true
-        });
-    }
-
-    // ==========================================
-    // 🔥 REFRESH TOKEN - HAMESHA VALID
-    // ==========================================
-    if (urlPath.includes('/api/v1.0/users/refresh-token') || 
-        urlPath.includes('/api/v1.0/users/auth/refresh')) {
-        
-        return res.status(200).json({
-            success: true,
-            code: 200,
-            access_token: PREMIUM.authorization.replace('jwt ', ''),
-            refresh_token: PREMIUM.authorization.replace('jwt ', ''),
-            expires_in: 315360000,
-            user: {
-                id: 376525827,
-                has_premium: true,
-                user_subscriptions: [{
-                    status: "Active",
-                    valid_till: "2099-12-31",
-                    plan_name: "Lifetime Premium",
-                    is_recurring: false,
-                    plan_amount: 0
-                }]
-            }
-        });
-    }
-
-    // ==========================================
-    // 🔥 CDN/CLOUDFRONT HANDLER - MAIN FIX
-    // ==========================================
-    if (urlPath.includes('media.cdn.kukufm.com') || 
-        urlPath.includes('cloudfront.net') ||
-        urlPath.includes('kukufm.com/hls/') ||
-        urlPath.includes('.m3u8') ||
-        urlPath.includes('.ts')) {
-        
+    if (isPremiumEndpoint || isDrmContent) {
         try {
-            const headers = {
-                'User-Agent': PREMIUM.user_agent,
-                'Accept-Encoding': 'gzip',
-                'Accept': '*/*',
-                'Connection': 'keep-alive',
-                'Referer': 'https://api.kukufm.com',
-                'Origin': 'https://api.kukufm.com',
-                'Authorization': PREMIUM.authorization,
-                'device-id': PREMIUM.device_id,
-                'package-name': PREMIUM.package_name,
-                'app-version': PREMIUM.app_version
-            };
-
-            let cdnUrl = urlPath;
+            const headers = buildHeaders(req);
+            const targetUrl = getTargetUrl(cleanPath);
             
-            if (!cdnUrl.startsWith('http')) {
-                cdnUrl = 'https://' + cdnUrl;
-            }
-
-            const response = await fetch(cdnUrl, {
-                method: 'GET',
-                headers: headers
+            console.log('🔄 Fetching:', targetUrl + urlPath);
+            
+            const response = await fetch(targetUrl + urlPath, {
+                method: method,
+                headers: headers,
+                body: method !== 'GET' && req.body ? JSON.stringify(req.body) : undefined
             });
 
-            if (response.status === 403) {
-                console.log('⚠️ CDN 403 - Using fallback proxy');
-                
-                const apiResponse = await fetch('https://api.kukufm.com/api/v1.0/video/playback/', {
-                    method: 'POST',
-                    headers: buildPremiumHeaders(),
-                    body: JSON.stringify({
-                        episode_id: urlPath.split('/').pop().replace('.m3u8', '')
-                    })
-                });
-                
-                const apiData = await apiResponse.json();
-                if (apiData && apiData.video_url) {
-                    return res.redirect(302, apiData.video_url);
-                }
-            }
-
-            const buffer = await response.arrayBuffer();
-            const contentType = response.headers.get('content-type') || 'application/vnd.apple.mpegurl';
+            let data = await response.json();
             
+            // Premium unlock
+            data = unlockAllContent(data);
+            
+            // Branding add
+            data = addBrandingToAll(data);
+            
+            // Extra headers for premium access
+            res.setHeader('X-Premium-Access', 'true');
+            res.setHeader('X-Unlocked', 'true');
+            
+            return res.status(200).json(data);
+            
+        } catch (error) {
+            console.error('❌ Premium fetch error:', error);
+            // Fallback: fake premium data
+            return res.status(200).json({
+                status: 200,
+                message: "Success",
+                data: {
+                    is_premium: false,
+                    locked: false,
+                    free: true,
+                    episodes: []
+                }
+            });
+        }
+    }
+
+    // ==========================================
+    // 🔄 ALL OTHER REQUESTS
+    // ==========================================
+    try {
+        const headers = buildHeaders(req);
+        const targetUrl = getTargetUrl(cleanPath);
+        
+        delete headers['accept-encoding'];
+        delete headers['content-length'];
+        delete headers['host'];
+        delete headers['connection'];
+
+        const fetchOptions = {
+            method: method,
+            headers: headers,
+        };
+
+        if (method !== 'GET' && method !== 'HEAD' && req.body) {
+            if (typeof req.body === 'string') {
+                fetchOptions.body = req.body;
+            } else if (Buffer.isBuffer(req.body)) {
+                fetchOptions.body = req.body;
+            } else if (typeof req.body === 'object') {
+                fetchOptions.body = JSON.stringify(req.body);
+                fetchOptions.headers['content-type'] = 'application/json';
+            }
+        }
+
+        const response = await fetch(targetUrl + urlPath, fetchOptions);
+        const contentType = response.headers.get('content-type') || '';
+
+        if (contentType.includes('application/json')) {
+            let data = await response.json();
+            data = unlockAllContent(data);
+            data = addBrandingToAll(data);
+            return res.status(response.status).json(data);
+        } else {
+            const buffer = Buffer.from(await response.arrayBuffer());
             response.headers.forEach((value, key) => {
                 if (!['content-encoding', 'content-length', 'transfer-encoding'].includes(key)) {
                     res.setHeader(key, value);
                 }
             });
-            
-            res.setHeader('Content-Type', contentType);
-            res.setHeader('Access-Control-Allow-Origin', '*');
-            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-            res.setHeader('Access-Control-Allow-Headers', '*');
-            
-            return res.status(response.status).send(Buffer.from(buffer));
-            
-        } catch (error) {
-            console.error('❌ CDN Error:', error);
-            
-            try {
-                const episodeId = urlPath.split('/').pop().replace('.m3u8', '');
-                const apiResponse = await fetch('https://api.kukufm.com/api/v1.0/video/playback/', {
-                    method: 'POST',
-                    headers: buildPremiumHeaders(),
-                    body: JSON.stringify({ episode_id: episodeId })
-                });
-                const apiData = await apiResponse.json();
-                
-                if (apiData && apiData.video_url) {
-                    return res.status(200).json({
-                        success: true,
-                        video_url: apiData.video_url,
-                        message: "Use this URL directly [ BAD BOY ]"
-                    });
-                }
-            } catch(e) {}
-            
-            return res.status(403).json({
-                error: "CDN Access Denied",
-                message: "Please use the API endpoint instead [ BAD BOY ]",
-                solution: "Use /api/v1.0/video/playback/ to get video URL"
-            });
-        }
-    }
-
-    // ==========================================
-    // 🎯 VIDEO PLAYBACK API - ALTERNATIVE ROUTE
-    // ==========================================
-    if (urlPath.includes('/api/v1.0/video/playback/') || 
-        urlPath.includes('/api/v1.0/show/episode/')) {
-        try {
-            const headers = buildPremiumHeaders();
-            maskIP(headers);
-            
-            const fetchOptions = {
-                method: method,
-                headers: headers,
-                timeout: 30000,
-            };
-
-            if (method !== 'GET' && method !== 'HEAD' && req.body) {
-                fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-            }
-
-            const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
-            let data = await response.json();
-            
-            if (data && data.video_url) {
-                data.video_url = data.video_url.replace('https://media.cdn.kukufm.com', 'https://' + req.headers.host);
-                data.proxy_url = req.headers.host + '/video-proxy/' + data.video_url.split('/').pop();
-            }
-            
-            injectBadBoyBranding(data);
-            return res.status(200).json(data);
-            
-        } catch (error) {
-            return res.status(500).json({ error: error.message });
-        }
-    }
-
-    // ==========================================
-    // 🔥 VERIFY OTP - ORIGINAL LOGIC
-    // ==========================================
-    if (urlPath.includes('/api/v1.0/users/auth/verify-otp/')) {
-        try {
-            const headers = { ...req.headers };
-            delete headers['accept-encoding'];
-            delete headers['content-length'];
-            delete headers['host'];
-
-            maskIP(headers);
-
-            const fetchOptions = {
-                method: 'POST',
-                headers: headers,
-                timeout: 30000,
-            };
-
-            if (req.body) {
-                fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-            }
-
-            const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
-            let data = await response.json();
-
-            data = data || {};
-            data.type = "jwt";
-            data.message = "Login successful [ BAD BOY ]";
-            data.token = PREMIUM.authorization.replace('jwt ', '');
-            data.access_token = PREMIUM.authorization.replace('jwt ', '');
-            data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
-            
-            data.user = {
-                has_premium: true,
-                is_user_anonymous: false,
-                is_free_trial_period: true,
-                is_existing_subscriber: true,
-                user_subscriptions: [{
-                    status: "Active",
-                    valid_till: "2099-12-31",
-                    plan_name: "Lifetime [ BAD BOY ] Premium",
-                    is_recurring: false,
-                    plan_amount: 0
-                }]
-            };
-            
-            data.success = true;
-            data.code = 200;
-            
-            injectBadBoyBranding(data);
-            return res.status(200).json(data);
-            
-        } catch (error) {
-            return res.status(200).json({
-                type: "jwt",
-                message: "Login successful [ BAD BOY ]",
-                token: PREMIUM.authorization.replace('jwt ', ''),
-                access_token: PREMIUM.authorization.replace('jwt ', ''),
-                refresh_token: PREMIUM.authorization.replace('jwt ', ''),
-                user: {
-                    has_premium: true,
-                    is_user_anonymous: false,
-                    is_free_trial_period: true,
-                    is_existing_subscriber: true,
-                    user_subscriptions: [{
-                        status: "Active",
-                        valid_till: "2099-12-31",
-                        plan_name: "Lifetime [ BAD BOY ] Premium",
-                        is_recurring: false,
-                        plan_amount: 0
-                    }]
-                },
-                success: true,
-                code: 200
-            });
-        }
-    }
-
-    // ==========================================
-    // 🔥 SEND OTP - ORIGINAL LOGIC
-    // ==========================================
-    if (urlPath.includes('/api/v1.0/users/auth/send-otp/')) {
-        try {
-            const headers = { ...req.headers };
-            delete headers['accept-encoding'];
-            delete headers['content-length'];
-            delete headers['host'];
-
-            maskIP(headers);
-
-            const fetchOptions = {
-                method: 'POST',
-                headers: headers,
-                timeout: 30000,
-            };
-
-            if (req.body) {
-                fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-            }
-
-            const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
-            const data = await response.json();
-            
-            return res.status(response.status).json(data);
-        } catch (error) {
-            return res.status(500).json({ error: error.message });
-        }
-    }
-
-    // ==========================================
-    // 1️⃣ GET SESSION TOKEN - ORIGINAL LOGIC
-    // ==========================================
-    if (urlPath.includes('/api/v1.1/users/get-session-token/')) {
-        try {
-            const headers = { ...req.headers };
-            delete headers['accept-encoding'];
-            delete headers['content-length'];
-            delete headers['host'];
-
-            maskIP(headers);
-
-            const fetchOptions = {
-                method: method,
-                headers: headers,
-                timeout: 30000,
-            };
-
-            if (method !== 'GET' && method !== 'HEAD' && req.body) {
-                fetchOptions.body = typeof req.body === 'string' ? req.body : new URLSearchParams(req.body).toString();
-            }
-
-            const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
-            let data = await response.json();
-
-            if (data.user) {
-                data.user.has_premium = true;
-                data.user.is_user_anonymous = false;
-                data.user.is_free_trial_period = true;
-                data.user.is_existing_subscriber = true;
-                
-                if (!data.user.user_subscriptions || data.user.user_subscriptions.length === 0) {
-                    data.user.user_subscriptions = [{
-                        status: "Active",
-                        valid_till: "2099-12-31",
-                        plan_name: "Lifetime [ BAD BOY ] Premium",
-                        is_recurring: false,
-                        plan_amount: 0
-                    }];
-                }
-            }
-            
-            data.access_token = PREMIUM.authorization.replace('jwt ', '');
-            data.refresh_token = PREMIUM.authorization.replace('jwt ', '');
-            data.code = 200;
-            data.success = true;
-
-            injectBadBoyBranding(data);
-            return res.status(200).json(data);
-            
-        } catch (error) {
-            return res.status(200).json({
-                success: true,
-                code: 200,
-                access_token: PREMIUM.authorization.replace('jwt ', ''),
-                refresh_token: PREMIUM.authorization.replace('jwt ', ''),
-                user: {
-                    has_premium: true,
-                    is_user_anonymous: false,
-                    is_free_trial_period: true,
-                    is_existing_subscriber: true,
-                    name: "BAD BOY Premium [ BAD BOY ]",
-                    user_subscriptions: [{
-                        status: "Active",
-                        valid_till: "2099-12-31",
-                        plan_name: "Lifetime [ BAD BOY ] Premium",
-                        is_recurring: false,
-                        plan_amount: 0
-                    }]
-                }
-            });
-        }
-    }
-
-    // ==========================================
-    // 2️⃣ MASTER CONFIG - ORIGINAL LOGIC
-    // ==========================================
-    if (urlPath.includes('/api/v1.0/config/master/android/')) {
-        try {
-            const headers = buildPremiumHeaders();
-            maskIP(headers);
-            
-            const response = await fetch(targetBaseUrl + urlPath, {
-                method: method,
-                headers: headers
-            });
-            let data = await response.json();
-
-            if (data.user_data) {
-                data.user_data.has_premium = true;
-                data.user_data.is_anonymous = false;
-                data.user_data.is_existing_subscriber = true;
-                
-                if (data.user_data.user) {
-                    data.user_data.user.has_premium = true;
-                    data.user_data.user.is_free_trial_period = true;
-                    
-                    if (data.user_data.user.user_subscriptions && 
-                        data.user_data.user.user_subscriptions.length > 0) {
-                        data.user_data.user.user_subscriptions.forEach(sub => {
-                            sub.status = "Active";
-                            sub.valid_till = "2099-12-31";
-                            sub.plan_name = "Lifetime [ BAD BOY ] Premium";
-                            sub.is_recurring = false;
-                        });
-                    } else {
-                        data.user_data.user.user_subscriptions = [{
-                            status: "Active",
-                            valid_till: "2099-12-31",
-                            plan_name: "Lifetime [ BAD BOY ] Premium",
-                            is_recurring: false,
-                            plan_amount: 0
-                        }];
-                    }
-                }
-            }
-
-            injectBadBoyBranding(data);
-            return res.status(200).json(data);
-            
-        } catch (error) {
-            return res.status(500).json({ error: error.message });
-        }
-    }
-
-    // ==========================================
-    // 3️⃣ HOME / SHOW DATA - ORIGINAL LOGIC
-    // ==========================================
-    if (urlPath.includes('/api/v3/home/') || urlPath.includes('/api/v2/home/') || 
-        urlPath.includes('/api/v1.0/show/') || urlPath.includes('/category/') ||
-        urlPath.includes('/search')) {
-        try {
-            const headers = buildPremiumHeaders();
-            maskIP(headers);
-            
-            const response = await fetch(targetBaseUrl + urlPath, {
-                method: method,
-                headers: headers
-            });
-            let data = await response.json();
-
-            injectBadBoyBranding(data);
-            return res.status(200).json(data);
-        } catch (error) {
-            return res.status(500).json({ error: error.message });
-        }
-    }
-
-    // ==========================================
-    // 4️⃣ UNLOCK / ORDER / PAYMENT FAKE
-    // ==========================================
-    if (urlPath.includes('/unlock') || urlPath.includes('/order') || 
-        urlPath.includes('/pay') || urlPath.includes('/payment') || 
-        urlPath.includes('/purchase')) {
-        return res.status(200).json({
-            code: 200,
-            message: "Success [ BAD BOY ]",
-            data: {
-                orderId: "BB_" + Date.now(),
-                status: "SUCCESS",
-                unlockTime: Date.now(),
-                isPremium: true
-            },
-            success: true
-        });
-    }
-
-    // ==========================================
-    // 5️⃣ ANALYTICS / TRACKING BLOCK
-    // ==========================================
-    if (urlPath.includes('/events/') || urlPath.includes('web-events')) {
-        return res.status(201).json({ message: "Event created successfully", success: true });
-    }
-
-    if (urlPath.includes('moengage') || urlPath.includes('sdk-03.moengage.com')) {
-        return res.status(200).json({ status: "success", message: "Accepted" });
-    }
-
-    if (urlPath.includes('appsflyer') || urlPath.includes('androidevent')) {
-        return res.status(200).send('ok');
-    }
-
-    if (urlPath.includes('graph.facebook.com') || urlPath.includes('facebook')) {
-        return res.status(200).json({ success: true });
-    }
-
-    if (urlPath.includes('otpless') || urlPath.includes('user-auth.otpless.app')) {
-        try {
-            const headers = { ...req.headers };
-            delete headers['accept-encoding'];
-            delete headers['content-length'];
-            delete headers['host'];
-            
-            maskIP(headers);
-
-            const fetchOptions = {
-                method: method,
-                headers: headers,
-                timeout: 30000,
-            };
-
-            if (req.body) {
-                fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-            }
-
-            const response = await fetch(urlPath, fetchOptions);
-            const data = await response.text();
-            return res.status(response.status).send(data);
-        } catch (e) {
-            return res.status(200).json({ status: "success" });
-        }
-    }
-
-    if (urlPath.includes('firebase') || urlPath.includes('googleapis.com')) {
-        try {
-            const headers = { ...req.headers };
-            delete headers['accept-encoding'];
-            delete headers['content-length'];
-            delete headers['host'];
-            
-            maskIP(headers);
-
-            const fetchOptions = {
-                method: method,
-                headers: headers,
-                timeout: 30000,
-            };
-
-            if (req.body) {
-                fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-            }
-
-            const response = await fetch(urlPath, fetchOptions);
-            const data = await response.text();
-            
-            try {
-                const jsonData = JSON.parse(data);
-                if (jsonData && jsonData.idToken) {
-                    jsonData.idToken = PREMIUM.authorization.replace('jwt ', '');
-                    jsonData.refreshToken = PREMIUM.authorization.replace('jwt ', '');
-                    return res.status(200).json(jsonData);
-                }
-            } catch(e) {}
-            
-            return res.status(response.status).send(data);
-        } catch (e) {
-            return res.status(200).json({ kind: "identitytoolkit#VerifyCustomTokenResponse", registered: true });
-        }
-    }
-
-    // ==========================================
-    // 6️⃣ ROOT PATH
-    // ==========================================
-    if (urlPath === '/' || urlPath === '') {
-        return res.status(200).json({
-            status: "🔥 Proxy is Running",
-            brand: "BAD BOY EDITION",
-            message: "✅ Session Fixed! No more 2-hour logout!",
-            session_fix: "Session validation endpoints intercepted",
-            ip_masking: "Active - Fake IP: " + PREMIUM.fakeIP,
-            rate_limit: "2 requests per 0.5 second",
-            random_delay: "100ms to 400ms",
-            endpoints: {
-                send_otp: "POST /api/v1.0/users/auth/send-otp/",
-                verify_otp: "POST /api/v1.0/users/auth/verify-otp/",
-                session: "/api/v1.1/users/get-session-token/",
-                config: "/api/v1.0/config/master/android/",
-                home: "/api/v3/home/all/?page=1",
-                video_playback: "POST /api/v1.0/video/playback/"
-            }
-        });
-    }
-
-    // ==========================================
-    // 🔄 BAAKI SARI REQUESTS FORWARD
-    // ==========================================
-    try {
-        const headers = buildPremiumHeaders();
-        delete headers['accept-encoding'];
-        delete headers['content-length'];
-        delete headers['host'];
-
-        maskIP(headers);
-
-        const fetchOptions = {
-            method: method,
-            headers: headers,
-            timeout: 30000,
-        };
-
-        if (method !== 'GET' && method !== 'HEAD' && req.body) {
-            fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-        }
-
-        const response = await fetch(targetBaseUrl + urlPath, fetchOptions);
-        const contentType = response.headers.get('content-type') || '';
-
-        if (contentType.includes('application/json')) {
-            let data = await response.json();
-            injectBadBoyBranding(data);
-            return res.status(response.status).json(data);
-        } 
-        else {
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            
-            response.headers.forEach((value, key) => {
-                if (key !== 'content-encoding' && key !== 'content-length') {
-                    res.setHeader(key, value);
-                }
-            });
+            if (contentType) res.setHeader('Content-Type', contentType);
             return res.status(response.status).send(buffer);
         }
 
@@ -747,4 +164,180 @@ export default async function handler(req, res) {
             message: "Proxy Error: " + error.message
         });
     }
+}
+
+// ==========================================
+// 🔓 UNLOCK ALL CONTENT - IMPROVED
+// ==========================================
+function unlockAllContent(data) {
+    if (!data || typeof data !== 'object') return data;
+
+    const unlockObject = (obj) => {
+        if (!obj || typeof obj !== 'object') return obj;
+
+        // Premium flags remove
+        const premiumKeys = [
+            'isPremium', 'is_premium', 'locked', 'paid', 
+            'is_paid', 'is_locked', 'premium', 'vip',
+            'is_vip', 'is_coin_user', 'is_subscriber',
+            'has_premium_access', 'requires_payment'
+        ];
+        
+        premiumKeys.forEach(key => {
+            if (key in obj) {
+                obj[key] = false;
+            }
+        });
+
+        // Free access flags
+        const freeKeys = ['free', 'is_free', 'available', 'is_available'];
+        freeKeys.forEach(key => {
+            if (key in obj) {
+                obj[key] = true;
+            }
+        });
+
+        // Episode counts unlimited
+        const countKeys = [
+            'episodes_count', 'unlocked_episodes_count', 
+            'total_episodes', 'story_count', 'chapter_count',
+            'available_episodes', 'free_episodes'
+        ];
+        countKeys.forEach(key => {
+            if (key in obj) {
+                obj[key] = 999999;
+            }
+        });
+
+        // VIP timestamp extend
+        if ('vip_timestamp' in obj) {
+            obj.vip_timestamp = '2099-12-31T23:59:59Z';
+        }
+        if ('expiry_date' in obj) {
+            obj.expiry_date = '2099-12-31T23:59:59Z';
+        }
+
+        // Arrays mein unlock
+        if (Array.isArray(obj)) {
+            obj.forEach(item => unlockObject(item));
+        } else {
+            Object.keys(obj).forEach(key => {
+                if (typeof obj[key] === 'object' && obj[key] !== null) {
+                    unlockObject(obj[key]);
+                }
+            });
+        }
+
+        return obj;
+    };
+
+    return unlockObject(data);
+}
+
+// ==========================================
+// 🏷️ BRANDING ADD
+// ==========================================
+function addBrandingToAll(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    
+    if (Array.isArray(obj)) {
+        return obj.map(item => addBrandingToAll(item));
+    }
+
+    const brandingFields = [
+        'fullname', 'name', 'display_name', 'username', 
+        'creator_name', 'author_name', 'artist_name',
+        'title', 'description', 'bio', 'about'
+    ];
+
+    Object.keys(obj).forEach(key => {
+        if (brandingFields.includes(key) && typeof obj[key] === 'string') {
+            if (!obj[key].includes(APP_CONFIG.branding)) {
+                obj[key] = obj[key] + APP_CONFIG.branding;
+            }
+        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+            addBrandingToAll(obj[key]);
+        }
+    });
+
+    return obj;
+}
+
+// ==========================================
+// 🛠 BUILD HEADERS
+// ==========================================
+function buildHeaders(req) {
+    const headers = {};
+
+    // Original headers copy
+    if (req.headers) {
+        Object.keys(req.headers).forEach(key => {
+            const lowerKey = key.toLowerCase();
+            if (!['accept-encoding', 'content-length', 'host', 'connection'].includes(lowerKey)) {
+                headers[key] = req.headers[key];
+            }
+        });
+    }
+
+    // Auth headers
+    headers['authorization'] = 'Bearer ' + APP_CONFIG.accessToken;
+    headers['access-token'] = APP_CONFIG.accessToken;
+    headers['jwt-access-token'] = APP_CONFIG.accessToken;
+    headers['auth-token'] = APP_CONFIG.accessToken;
+    headers['jwt-auth-token'] = APP_CONFIG.accessToken;
+    headers['x-access-token'] = APP_CONFIG.accessToken;
+    
+    // Device headers
+    headers['device-id'] = APP_CONFIG.deviceId;
+    headers['x-device-id'] = APP_CONFIG.deviceId;
+    headers['session-id'] = APP_CONFIG.sessionId;
+    headers['app-instance-id'] = APP_CONFIG.appInstanceId;
+    headers['ad-id'] = APP_CONFIG.adId;
+    headers['uid'] = APP_CONFIG.uid;
+    headers['user-id'] = APP_CONFIG.uid;
+    headers['profile-id'] = APP_CONFIG.profileId;
+    
+    // App headers
+    headers['app-version'] = APP_CONFIG.appVersion;
+    headers['version-name'] = APP_CONFIG.versionName;
+    headers['platform'] = APP_CONFIG.platform;
+    headers['platform-version'] = APP_CONFIG.platformVersion;
+    headers['user-agent'] = APP_CONFIG.userAgent;
+    
+    // Content headers
+    headers['accept'] = 'application/json';
+    headers['content-type'] = 'application/json';
+    headers['accept-language'] = 'en-IN';
+    
+    // Premium bypass headers
+    headers['x-premium'] = 'true';
+    headers['x-unlock'] = 'true';
+    headers['x-bypass'] = 'true';
+
+    // Fullname in base64
+    headers['fullname'] = Buffer.from(APP_CONFIG.fullname + ' (Premium)').toString('base64');
+    
+    return headers;
+}
+
+// ==========================================
+// 🛠 GET TARGET URL
+// ==========================================
+function getTargetUrl(cleanPath) {
+    if (cleanPath.includes('api.pocketfm.com') || 
+        cleanPath.includes('/v2/') || 
+        cleanPath.includes('/v3/') ||
+        cleanPath.includes('/v1/')) {
+        return 'https://api.pocketfm.com';
+    }
+    if (cleanPath.includes('analytics.pocketfm.com')) {
+        return 'https://analytics.pocketfm.com';
+    }
+    if (cleanPath.includes('cloudfront.net')) {
+        return 'https://' + cleanPath.split('/')[2];
+    }
+    if (cleanPath.includes('firebase')) {
+        return 'https://firebaselogging-pa.googleapis.com';
+    }
+    return 'https://api.pocketfm.com';
 }
