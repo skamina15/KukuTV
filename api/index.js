@@ -1,7 +1,10 @@
 // ==========================================
-// 🎯 POCKET FM PROXY - ANSARI ACCOUNT + USER BRANDING
+// 🎯 POCKET FM PROXY - AUTO ANSARI LOGIN
 // ==========================================
 
+// ==========================================
+// 🔒 CONFIG
+// ==========================================
 const APP_CONFIG = {
     deviceId: 'f9a665481472b85a',
     sessionId: 'a706bf74-1f2f-47c8-9d9a-26ce685a5e6b',
@@ -16,43 +19,40 @@ const APP_CONFIG = {
     platform: 'android',
     platformVersion: '36',
     userAgent: 'okhttp/4.12.0',
+    branding: '@Ansari'
 };
+
+// ==========================================
+// 🚫 BLOCKED ENDPOINTS - LOGOUT/DELETE
+// ==========================================
+const BLOCKED_ENDPOINTS = [
+    '/api/v1/users/logout', '/api/v1/users/delete',
+    '/api/v1/account/delete', '/auth/logout', '/auth/delete'
+];
+
+// ==========================================
+// 🚫 ALL TRACKING/ANALYTICS DOMAINS
+// ==========================================
+const TRACKING_DOMAINS = [
+    'firebaselogging-pa.googleapis.com',
+    'firebaseinstallations.googleapis.com',
+    'analytics.pocketfm.com',
+    'gateway.unityads.unity3d.com',
+    'appsflyersdk.com',
+    'appsflyer',
+    'dns.google',
+    'revenuecat.com',
+    'posthog.com',
+    'posthog',
+    'androidevent',
+    'logging_data/log',
+    'product_entitlement_mapping'
+];
 
 export default async function handler(req, res) {
     let urlPath = req.headers['x-invoke-path'] || req.url;
     const cleanPath = urlPath.split('?')[0];
     const method = req.method;
-
-    // ==========================================
-    // 👤 GET USER'S NAME FOR BRANDING
-    // ==========================================
-    let currentUserName = 'User';
-    
-    // Try to get name from headers
-    if (req.headers['fullname']) {
-        try {
-            currentUserName = Buffer.from(req.headers['fullname'], 'base64').toString();
-        } catch(e) {
-            currentUserName = req.headers['fullname'];
-        }
-    } else if (req.headers['x-user-name']) {
-        try {
-            currentUserName = Buffer.from(req.headers['x-user-name'], 'base64').toString();
-        } catch(e) {
-            currentUserName = req.headers['x-user-name'];
-        }
-    } else if (req.body && req.body.fullname) {
-        currentUserName = req.body.fullname;
-    } else if (req.body && req.body.name) {
-        currentUserName = req.body.name;
-    } else if (req.headers['user-agent']) {
-        // Fallback - extract from user-agent
-        const match = req.headers['user-agent'].match(/PocketFM\/([^\/]+)/);
-        if (match) currentUserName = match[1];
-    }
-
-    // Clean username (remove @ if present)
-    currentUserName = currentUserName.replace(/^@/, '').trim();
 
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
@@ -65,11 +65,6 @@ export default async function handler(req, res) {
     // ==========================================
     // 🚫 BLOCK LOGOUT/DELETE
     // ==========================================
-    const BLOCKED_ENDPOINTS = [
-        '/api/v1/users/logout', '/api/v1/users/delete',
-        '/api/v1/account/delete', '/auth/logout', '/auth/delete'
-    ];
-    
     const isBlocked = BLOCKED_ENDPOINTS.some(endpoint => cleanPath.includes(endpoint));
     if (isBlocked) {
         return res.status(200).json({
@@ -81,47 +76,98 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🚫 BLOCK TRACKING
+    // 🚫 BLOCK ALL TRACKING/ANALYTICS
     // ==========================================
-    const TRACKING_DOMAINS = [
-        'firebaselogging-pa.googleapis.com',
-        'firebaseinstallations.googleapis.com',
-        'analytics.pocketfm.com',
-        'gateway.unityads.unity3d.com',
-        'appsflyersdk.com',
-        'appsflyer',
-        'dns.google',
-        'revenuecat.com',
-        'posthog.com',
-        'androidevent',
-        'logging_data/log',
-        'product_entitlement_mapping'
-    ];
-    
     const isTracking = TRACKING_DOMAINS.some(domain => 
         cleanPath.includes(domain) || urlPath.includes(domain)
     );
     
     if (isTracking) {
         if (cleanPath.includes('firebase')) {
-            return res.status(200).json({ logRequest: [], qosTier: "DEFAULT" });
+            return res.status(200).json({
+                logRequest: [],
+                qosTier: "DEFAULT"
+            });
         }
         if (cleanPath.includes('analytics') || cleanPath.includes('logging_data')) {
-            return res.status(200).json({ Status: 1, Message: "Request successfully processed" });
+            return res.status(200).json({
+                Status: 1,
+                Message: "Request successfully processed"
+            });
         }
-        return res.status(200).json({ code: 200, message: "SUCCESS", data: null });
+        return res.status(200).json({ 
+            code: 200, 
+            message: "SUCCESS", 
+            data: null 
+        });
     }
 
     // ==========================================
-    // 🏷️ BRANDING WITH USER'S NAME
+    // 🔄 INTERCEPT LOGIN/REGISTER - CONVERT TO ANSARI
+    // ==========================================
+    const isAuthEndpoint = cleanPath.includes('/auth/login') || 
+                          cleanPath.includes('/auth/register') ||
+                          cleanPath.includes('/users/login') ||
+                          cleanPath.includes('/users/register');
+
+    if (isAuthEndpoint) {
+        try {
+            const headers = buildHeaders(req);
+            const targetUrl = getTargetUrl(cleanPath);
+            
+            const response = await fetch(targetUrl + urlPath, {
+                method: method,
+                headers: headers,
+                body: method !== 'GET' && req.body ? JSON.stringify(req.body) : undefined
+            });
+            
+            let data = await response.json();
+            
+            // Convert response to Ansari account
+            if (data && typeof data === 'object') {
+                // Replace user data with Ansari
+                if (data.data) {
+                    data.data = convertToAnsariUser(data.data);
+                }
+                if (data.user) {
+                    data.user = convertToAnsariUser(data.user);
+                }
+                if (data.result) {
+                    data.result = convertToAnsariUser(data.result);
+                }
+                
+                // Replace tokens
+                data.access_token = APP_CONFIG.accessToken;
+                data.token = APP_CONFIG.accessToken;
+                data.jwt = APP_CONFIG.accessToken;
+                data.refresh_token = APP_CONFIG.accessToken;
+                
+                // Add success
+                data.success = true;
+                data.code = 200;
+            }
+            
+            return res.status(200).json(data);
+        } catch (error) {
+            // Fallback: Return Ansari account directly
+            return res.status(200).json({
+                code: 200,
+                success: true,
+                message: "Login successful",
+                data: getAnsariUserData(),
+                access_token: APP_CONFIG.accessToken,
+                token: APP_CONFIG.accessToken
+            });
+        }
+    }
+
+    // ==========================================
+    // 🎯 BRANDING ADD
     // ==========================================
     const addBranding = (text) => {
         if (!text || typeof text !== 'string') return text;
-        // Skip if already branded
-        if (text.includes(' @')) return text;
-        // Don't add @ to "Ansari" directly (allow it)
-        if (text === 'Ansari') return text;
-        return text + ' @' + currentUserName;
+        if (text.includes(APP_CONFIG.branding)) return text;
+        return text + ' ' + APP_CONFIG.branding;
     };
 
     const addBrandingToAll = (obj) => {
@@ -132,12 +178,7 @@ export default async function handler(req, res) {
         Object.keys(obj).forEach(key => {
             if (typeof obj[key] === 'string') {
                 if (['fullname', 'name', 'display_name', 'username', 'creator_name', 'author_name'].includes(key)) {
-                    // Keep "Ansari" as account name, add user's name as tag
-                    if (obj[key] === 'Ansari') {
-                        // Already Ansari's account, just add user's name
-                    } else {
-                        obj[key] = addBranding(obj[key]);
-                    }
+                    obj[key] = addBranding(obj[key]);
                 }
             } else if (typeof obj[key] === 'object' && obj[key] !== null) {
                 addBrandingToAll(obj[key]);
@@ -147,7 +188,7 @@ export default async function handler(req, res) {
     };
 
     // ==========================================
-    // 🔓 UNLOCK ALL EPISODES
+    // 🔥 UNLOCK ALL EPISODES
     // ==========================================
     const unlockAllEpisodes = (data) => {
         if (!data || typeof data !== 'object') return data;
@@ -203,55 +244,63 @@ export default async function handler(req, res) {
     };
 
     // ==========================================
-    // 🔒 BUILD HEADERS - ALWAYS ANSARI'S ACCOUNT
+    // 🎯 SHOW PLAY DETAILS
     // ==========================================
-    function buildHeaders(req) {
-        const headers = {};
-
-        // Pass through non-auth headers
-        if (req.headers) {
-            Object.keys(req.headers).forEach(key => {
-                const lowerKey = key.toLowerCase();
-                if (!['accept-encoding', 'content-length', 'host', 'connection', 
-                       'authorization', 'uid', 'user-id', 'profile-id', 'access-token',
-                       'jwt-access-token', 'auth-token', 'jwt-auth-token'].includes(lowerKey)) {
-                    headers[key] = req.headers[key];
-                }
+    if (cleanPath.includes('/v2/content_api/show.play_details') || 
+        cleanPath.includes('/v3/feed/player')) {
+        try {
+            const headers = buildHeaders(req);
+            const targetUrl = getTargetUrl(cleanPath);
+            
+            const response = await fetch(targetUrl + urlPath, {
+                method: method,
+                headers: headers,
+                body: method !== 'GET' && req.body ? JSON.stringify(req.body) : undefined
+            });
+            
+            let data = await response.json();
+            data = unlockAllEpisodes(data);
+            data = addBrandingToAll(data);
+            
+            return res.status(200).json(data);
+        } catch (error) {
+            return res.status(200).json({
+                status: 200,
+                message: "Success",
+                result: []
             });
         }
-
-        // ✅ FORCE ANSARI'S ACCOUNT (Premium)
-        headers['device-id'] = APP_CONFIG.deviceId;
-        headers['x-device-id'] = APP_CONFIG.deviceId;
-        headers['session-id'] = APP_CONFIG.sessionId;
-        headers['app-instance-id'] = APP_CONFIG.appInstanceId;
-        headers['ad-id'] = APP_CONFIG.adId;
-        headers['uid'] = APP_CONFIG.uid;
-        headers['user-id'] = APP_CONFIG.uid;
-        headers['profile-id'] = APP_CONFIG.profileId;
-        headers['app-version'] = APP_CONFIG.appVersion;
-        headers['version-name'] = APP_CONFIG.versionName;
-        headers['platform'] = APP_CONFIG.platform;
-        headers['platform-version'] = APP_CONFIG.platformVersion;
-        headers['user-agent'] = APP_CONFIG.userAgent;
-        headers['accept'] = 'application/json';
-        headers['content-type'] = 'application/json';
-        headers['authorization'] = 'Bearer ' + APP_CONFIG.accessToken;
-        headers['access-token'] = APP_CONFIG.accessToken;
-        headers['jwt-access-token'] = APP_CONFIG.accessToken;
-        headers['auth-token'] = APP_CONFIG.authToken || APP_CONFIG.accessToken;
-        headers['jwt-auth-token'] = APP_CONFIG.jwtAuthToken || APP_CONFIG.accessToken;
-        
-        // ✅ Store user's name for branding
-        headers['x-user-name'] = Buffer.from(currentUserName).toString('base64');
-        // Still send fullname as Ansari (account name)
-        headers['fullname'] = Buffer.from('Ansari').toString('base64');
-        
-        return headers;
     }
 
     // ==========================================
-    // 🎯 FORWARD REQUEST
+    // 🎯 DRM CONTENT - BYPASS
+    // ==========================================
+    if (cleanPath.includes('/drm-aac/') || 
+        cleanPath.includes('/DASH/') ||
+        cleanPath.includes('/HLS/')) {
+        try {
+            const headers = buildHeaders(req);
+            const targetUrl = getTargetUrl(cleanPath);
+            
+            const response = await fetch(targetUrl + urlPath, {
+                method: method,
+                headers: headers
+            });
+            
+            const buffer = Buffer.from(await response.arrayBuffer());
+            response.headers.forEach((value, key) => {
+                if (!['content-encoding', 'content-length', 'transfer-encoding'].includes(key)) {
+                    res.setHeader(key, value);
+                }
+            });
+            return res.status(response.status).send(buffer);
+        } catch (error) {
+            return res.status(404).send('Not found');
+        }
+    }
+
+    // ==========================================
+    // 🔄 FORWARD ALL OTHER REQUESTS
     // ==========================================
     try {
         const headers = buildHeaders(req);
@@ -285,6 +334,10 @@ export default async function handler(req, res) {
             let data = await response.json();
             data = unlockAllEpisodes(data);
             data = addBrandingToAll(data);
+            
+            // Convert user data to Ansari in all responses
+            data = convertResponseToAnsari(data);
+            
             return res.status(response.status).json(data);
         } else {
             const buffer = Buffer.from(await response.arrayBuffer());
@@ -304,6 +357,93 @@ export default async function handler(req, res) {
             message: "Proxy Error: " + error.message
         });
     }
+}
+
+// ==========================================
+// 🛠 CONVERT TO ANSARI USER
+// ==========================================
+function convertToAnsariUser(userData) {
+    if (!userData || typeof userData !== 'object') return userData;
+    
+    return {
+        ...userData,
+        id: APP_CONFIG.profileId,
+        uid: APP_CONFIG.uid,
+        user_id: APP_CONFIG.profileId,
+        profile_id: APP_CONFIG.profileId,
+        fullname: APP_CONFIG.fullname + ' ' + APP_CONFIG.branding,
+        name: APP_CONFIG.fullname + ' ' + APP_CONFIG.branding,
+        display_name: APP_CONFIG.fullname + ' ' + APP_CONFIG.branding,
+        username: APP_CONFIG.fullname.toLowerCase(),
+        is_premium: true,
+        is_coin_user: true,
+        coins: 999999,
+        vip: true,
+        vip_timestamp: '2099-12-31T23:59:59Z',
+        profile_picture: 'https://ui-avatars.com/api/?name=' + APP_CONFIG.fullname,
+        avatar: 'https://ui-avatars.com/api/?name=' + APP_CONFIG.fullname,
+        device_id: APP_CONFIG.deviceId,
+        session_id: APP_CONFIG.sessionId
+    };
+}
+
+// ==========================================
+// 🛠 GET ANSARI USER DATA
+// ==========================================
+function getAnsariUserData() {
+    return {
+        id: APP_CONFIG.profileId,
+        uid: APP_CONFIG.uid,
+        user_id: APP_CONFIG.profileId,
+        profile_id: APP_CONFIG.profileId,
+        fullname: APP_CONFIG.fullname + ' ' + APP_CONFIG.branding,
+        name: APP_CONFIG.fullname + ' ' + APP_CONFIG.branding,
+        display_name: APP_CONFIG.fullname + ' ' + APP_CONFIG.branding,
+        username: APP_CONFIG.fullname.toLowerCase(),
+        email: 'ansari@proton.me',
+        phone: '9876543210',
+        is_premium: true,
+        is_coin_user: true,
+        coins: 999999,
+        vip: true,
+        vip_timestamp: '2099-12-31T23:59:59Z',
+        profile_picture: 'https://ui-avatars.com/api/?name=' + APP_CONFIG.fullname,
+        avatar: 'https://ui-avatars.com/api/?name=' + APP_CONFIG.fullname,
+        device_id: APP_CONFIG.deviceId,
+        session_id: APP_CONFIG.sessionId,
+        token: APP_CONFIG.accessToken,
+        access_token: APP_CONFIG.accessToken,
+        jwt: APP_CONFIG.accessToken
+    };
+}
+
+// ==========================================
+// 🛠 CONVERT RESPONSE TO ANSARI
+// ==========================================
+function convertResponseToAnsari(data) {
+    if (!data || typeof data !== 'object') return data;
+    
+    // Check if this is user data
+    if (data.data && data.data.user) {
+        data.data.user = convertToAnsariUser(data.data.user);
+    }
+    if (data.data && data.data.profile) {
+        data.data.profile = convertToAnsariUser(data.data.profile);
+    }
+    if (data.user) {
+        data.user = convertToAnsariUser(data.user);
+    }
+    if (data.profile) {
+        data.profile = convertToAnsariUser(data.profile);
+    }
+    
+    // Replace tokens if present
+    if (data.access_token) data.access_token = APP_CONFIG.accessToken;
+    if (data.token) data.token = APP_CONFIG.accessToken;
+    if (data.jwt) data.jwt = APP_CONFIG.accessToken;
+    if (data.refresh_token) data.refresh_token = APP_CONFIG.accessToken;
+    
+    return data;
 }
 
 // ==========================================
@@ -334,4 +474,43 @@ function getTargetUrl(cleanPath) {
         return 'https://firebaselogging-pa.googleapis.com';
     }
     return 'https://api.pocketfm.com';
+}
+
+// ==========================================
+// 🛠 BUILD HEADERS
+// ==========================================
+function buildHeaders(req) {
+    const headers = {};
+
+    if (req.headers) {
+        Object.keys(req.headers).forEach(key => {
+            if (!['accept-encoding', 'content-length', 'host', 'connection'].includes(key.toLowerCase())) {
+                headers[key] = req.headers[key];
+            }
+        });
+    }
+
+    headers['device-id'] = APP_CONFIG.deviceId;
+    headers['x-device-id'] = APP_CONFIG.deviceId;
+    headers['session-id'] = APP_CONFIG.sessionId;
+    headers['app-instance-id'] = APP_CONFIG.appInstanceId;
+    headers['ad-id'] = APP_CONFIG.adId;
+    headers['uid'] = APP_CONFIG.uid;
+    headers['user-id'] = APP_CONFIG.uid;
+    headers['profile-id'] = APP_CONFIG.profileId;
+    headers['app-version'] = APP_CONFIG.appVersion;
+    headers['version-name'] = APP_CONFIG.versionName;
+    headers['platform'] = APP_CONFIG.platform;
+    headers['platform-version'] = APP_CONFIG.platformVersion;
+    headers['user-agent'] = APP_CONFIG.userAgent;
+    headers['accept'] = 'application/json';
+    headers['content-type'] = 'application/json';
+    headers['authorization'] = 'Bearer ' + APP_CONFIG.accessToken;
+    headers['access-token'] = APP_CONFIG.accessToken;
+    headers['jwt-access-token'] = APP_CONFIG.accessToken;
+    headers['auth-token'] = APP_CONFIG.accessToken;
+    headers['jwt-auth-token'] = APP_CONFIG.accessToken;
+    headers['fullname'] = Buffer.from(APP_CONFIG.fullname).toString('base64');
+    
+    return headers;
 }
