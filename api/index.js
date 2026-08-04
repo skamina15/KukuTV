@@ -16,43 +16,41 @@ const APP_CONFIG = {
     platform: 'android',
     platformVersion: '36',
     userAgent: 'okhttp/4.12.0',
-    branding: ' @Ansari'
+    branding: '@Ansari'
 };
 
-// Premium endpoints ko bypass karne ke liye
-const PREMIUM_ENDPOINTS = [
-    '/v2/content_api/show.play_details',
-    '/v3/feed/player',
-    '/v2/content_api/story.detail',
-    '/v2/content_api/episode.detail',
-    '/v2/content_api/show.detail',
-    '/v2/content_api/chapter.detail',
-    '/v2/content_api/track.detail',
-    '/v2/content_api/playlist.detail',
-    '/v2/content_api/audio.detail',
-    '/v2/content_api/media.detail',
-    '/v1/content_api/show.play_details',
-    '/v1/content_api/story.detail',
-    '/v1/content_api/episode.detail'
+// ==========================================
+// 🚫 BLOCKED ENDPOINTS
+// ==========================================
+const BLOCKED_ENDPOINTS = [
+    '/api/v1/users/logout', '/api/v1/users/delete',
+    '/api/v1/account/delete', '/auth/logout', '/auth/delete'
 ];
 
-// DRM content bypass
-const DRM_PATHS = [
-    '/drm-aac/',
-    '/DASH/',
-    '/HLS/',
-    '.m3u8',
-    '.mpd',
-    '.ts',
-    '.aac'
+// ==========================================
+// 🚫 TRACKING DOMAINS
+// ==========================================
+const TRACKING_DOMAINS = [
+    'firebaselogging-pa.googleapis.com',
+    'firebaseinstallations.googleapis.com',
+    'analytics.pocketfm.com',
+    'gateway.unityads.unity3d.com',
+    'appsflyersdk.com',
+    'appsflyer',
+    'dns.google',
+    'revenuecat.com',
+    'posthog.com',
+    'posthog',
+    'androidevent',
+    'logging_data/log',
+    'product_entitlement_mapping'
 ];
 
 export default async function handler(req, res) {
-    let urlPath = req.headers['x-invoke-path'] || req.url || '';
+    let urlPath = req.headers['x-invoke-path'] || req.url;
     const cleanPath = urlPath.split('?')[0];
     const method = req.method;
 
-    // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', '*');
@@ -61,57 +59,226 @@ export default async function handler(req, res) {
         return res.status(200).end();
     }
 
-    // ==========================================
-    // 🔥 PREMIUM CONTENT UNLOCK
-    // ==========================================
-    const isPremiumEndpoint = PREMIUM_ENDPOINTS.some(endpoint => cleanPath.includes(endpoint));
-    const isDrmContent = DRM_PATHS.some(path => urlPath.includes(path));
+    // Block logout/delete
+    const isBlocked = BLOCKED_ENDPOINTS.some(endpoint => cleanPath.includes(endpoint));
+    if (isBlocked) {
+        return res.status(200).json({
+            code: 200,
+            message: "Action not allowed",
+            data: null,
+            success: true
+        });
+    }
 
-    if (isPremiumEndpoint || isDrmContent) {
+    // Block tracking
+    const isTracking = TRACKING_DOMAINS.some(domain => 
+        cleanPath.includes(domain) || urlPath.includes(domain)
+    );
+    
+    if (isTracking) {
+        if (cleanPath.includes('firebase')) {
+            return res.status(200).json({
+                logRequest: [],
+                qosTier: "DEFAULT"
+            });
+        }
+        if (cleanPath.includes('analytics') || cleanPath.includes('logging_data')) {
+            return res.status(200).json({
+                Status: 1,
+                Message: "Request successfully processed"
+            });
+        }
+        return res.status(200).json({ 
+            code: 200, 
+            message: "SUCCESS", 
+            data: null 
+        });
+    }
+
+    // ==========================================
+    // 🎯 BRANDING ADD
+    // ==========================================
+    const addBranding = (text) => {
+        if (!text || typeof text !== 'string') return text;
+        if (text.includes(APP_CONFIG.branding)) return text;
+        return text + ' ' + APP_CONFIG.branding;
+    };
+
+    const addBrandingToAll = (obj) => {
+        if (!obj || typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) {
+            return obj.map(item => addBrandingToAll(item));
+        }
+        const newObj = { ...obj };
+        Object.keys(newObj).forEach(key => {
+            if (typeof newObj[key] === 'string') {
+                if (['fullname', 'name', 'display_name', 'username', 'creator_name', 'author_name'].includes(key)) {
+                    newObj[key] = addBranding(newObj[key]);
+                }
+            } else if (typeof newObj[key] === 'object' && newObj[key] !== null) {
+                newObj[key] = addBrandingToAll(newObj[key]);
+            }
+        });
+        return newObj;
+    };
+
+    // ==========================================
+    // 🔥 UNLOCK ALL EPISODES - FIXED
+    // ==========================================
+    const unlockAllEpisodes = (data) => {
+        if (!data || typeof data !== 'object') return data;
+        
+        const deepUnlock = (item) => {
+            if (!item || typeof item !== 'object') return item;
+            
+            // Main episode fields
+            item.isPremium = false;
+            item.is_premium = false;
+            item.locked = false;
+            item.free = true;
+            item.paid = false;
+            item.is_coin_user = true;
+            item.is_paid = false;
+            item.is_locked = false;
+            item.is_free = true;
+            
+            // Unlock counts
+            item.unlocked_episodes_count = 999999;
+            item.episodes_count = 999999;
+            item.tab_count = 999999;
+            item.episode_locking_point = 999999;
+            item.higher_episode_locking_point = 999999;
+            item.vip_timestamp = '2099-12-31T23:59:59Z';
+            item.is_vip = true;
+            item.vip_status = 'active';
+            
+            // Stories array
+            if (Array.isArray(item.stories)) {
+                item.stories.forEach((story, index) => {
+                    if (story && typeof story === 'object') {
+                        story.isPremium = false;
+                        story.is_premium = false;
+                        story.locked = false;
+                        story.free = true;
+                        story.paid = false;
+                        story.is_coin_user = true;
+                        story.is_paid = false;
+                        story.is_locked = false;
+                        story.seq_number = index + 1;
+                        story.natural_sequence_number = index + 1;
+                        story.is_drm = false;
+                        story.is_drm_enabled = false;
+                        story.is_playable = true;
+                        story.downloadable = true;
+                        story.downloadable_status = true;
+                        
+                        // Fix URLs
+                        ['video_url', 'media_url', 'media_url_enc', 'hls_url', 'audio_url'].forEach(field => {
+                            if (story[field]) {
+                                story[field] = story[field].replace('http://', 'https://');
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // Episodes array
+            if (Array.isArray(item.episodes)) {
+                item.episodes.forEach((episode) => {
+                    if (episode && typeof episode === 'object') {
+                        episode.isPremium = false;
+                        episode.is_premium = false;
+                        episode.locked = false;
+                        episode.free = true;
+                        episode.paid = false;
+                        episode.is_coin_user = true;
+                    }
+                });
+            }
+            
+            return item;
+        };
+        
+        if (Array.isArray(data)) {
+            data.forEach(item => deepUnlock(item));
+        } else {
+            deepUnlock(data);
+        }
+        
+        return data;
+    };
+
+    // ==========================================
+    // 🎯 SHOW PLAY DETAILS - FIXED
+    // ==========================================
+    if (cleanPath.includes('/v2/content_api/show.play_details') || 
+        cleanPath.includes('/v3/feed/player') ||
+        cleanPath.includes('/v1/content/play') ||
+        cleanPath.includes('/v2/content/play')) {
         try {
             const headers = buildHeaders(req);
             const targetUrl = getTargetUrl(cleanPath);
-            
-            console.log('🔄 Fetching:', targetUrl + urlPath);
             
             const response = await fetch(targetUrl + urlPath, {
                 method: method,
                 headers: headers,
                 body: method !== 'GET' && req.body ? JSON.stringify(req.body) : undefined
             });
-
+            
             let data = await response.json();
             
-            // Premium unlock
-            data = unlockAllContent(data);
+            // Deep unlock
+            data = unlockAllEpisodes(data);
             
-            // Branding add
+            // Add branding
             data = addBrandingToAll(data);
             
-            // Extra headers for premium access
-            res.setHeader('X-Premium-Access', 'true');
-            res.setHeader('X-Unlocked', 'true');
-            
             return res.status(200).json(data);
-            
         } catch (error) {
-            console.error('❌ Premium fetch error:', error);
-            // Fallback: fake premium data
+            console.error('Play details error:', error);
             return res.status(200).json({
                 status: 200,
                 message: "Success",
+                result: [],
                 data: {
-                    is_premium: false,
-                    locked: false,
-                    free: true,
-                    episodes: []
+                    stories: []
                 }
             });
         }
     }
 
     // ==========================================
-    // 🔄 ALL OTHER REQUESTS
+    // 🎯 DRM CONTENT BYPASS - FIXED
+    // ==========================================
+    if (cleanPath.includes('/drm-aac/') || 
+        cleanPath.includes('/DASH/') ||
+        cleanPath.includes('/HLS/') ||
+        cleanPath.includes('.m3u8') ||
+        cleanPath.includes('.ts')) {
+        try {
+            const headers = buildHeaders(req);
+            const targetUrl = getTargetUrl(cleanPath);
+            
+            const response = await fetch(targetUrl + urlPath, {
+                method: method,
+                headers: headers
+            });
+            
+            const buffer = Buffer.from(await response.arrayBuffer());
+            response.headers.forEach((value, key) => {
+                if (!['content-encoding', 'content-length', 'transfer-encoding'].includes(key)) {
+                    res.setHeader(key, value);
+                }
+            });
+            return res.status(response.status).send(buffer);
+        } catch (error) {
+            console.error('DRM error:', error);
+            return res.status(404).send('Not found');
+        }
+    }
+
+    // ==========================================
+    // 🔄 FORWARD ALL OTHER REQUESTS
     // ==========================================
     try {
         const headers = buildHeaders(req);
@@ -121,6 +288,8 @@ export default async function handler(req, res) {
         delete headers['content-length'];
         delete headers['host'];
         delete headers['connection'];
+        delete headers['x-forwarded-for'];
+        delete headers['x-real-ip'];
 
         const fetchOptions = {
             method: method,
@@ -143,8 +312,22 @@ export default async function handler(req, res) {
 
         if (contentType.includes('application/json')) {
             let data = await response.json();
-            data = unlockAllContent(data);
-            data = addBrandingToAll(data);
+            
+            // Unlock all episodes in any response
+            if (data && typeof data === 'object') {
+                // Check for show/list responses
+                if (data.data && Array.isArray(data.data)) {
+                    data.data = unlockAllEpisodes(data.data);
+                } else if (data.result && Array.isArray(data.result)) {
+                    data.result = unlockAllEpisodes(data.result);
+                } else if (data.shows && Array.isArray(data.shows)) {
+                    data.shows = unlockAllEpisodes(data.shows);
+                } else {
+                    data = unlockAllEpisodes(data);
+                }
+                data = addBrandingToAll(data);
+            }
+            
             return res.status(response.status).json(data);
         } else {
             const buffer = Buffer.from(await response.arrayBuffer());
@@ -167,164 +350,10 @@ export default async function handler(req, res) {
 }
 
 // ==========================================
-// 🔓 UNLOCK ALL CONTENT - IMPROVED
-// ==========================================
-function unlockAllContent(data) {
-    if (!data || typeof data !== 'object') return data;
-
-    const unlockObject = (obj) => {
-        if (!obj || typeof obj !== 'object') return obj;
-
-        // Premium flags remove
-        const premiumKeys = [
-            'isPremium', 'is_premium', 'locked', 'paid', 
-            'is_paid', 'is_locked', 'premium', 'vip',
-            'is_vip', 'is_coin_user', 'is_subscriber',
-            'has_premium_access', 'requires_payment'
-        ];
-        
-        premiumKeys.forEach(key => {
-            if (key in obj) {
-                obj[key] = false;
-            }
-        });
-
-        // Free access flags
-        const freeKeys = ['free', 'is_free', 'available', 'is_available'];
-        freeKeys.forEach(key => {
-            if (key in obj) {
-                obj[key] = true;
-            }
-        });
-
-        // Episode counts unlimited
-        const countKeys = [
-            'episodes_count', 'unlocked_episodes_count', 
-            'total_episodes', 'story_count', 'chapter_count',
-            'available_episodes', 'free_episodes'
-        ];
-        countKeys.forEach(key => {
-            if (key in obj) {
-                obj[key] = 999999;
-            }
-        });
-
-        // VIP timestamp extend
-        if ('vip_timestamp' in obj) {
-            obj.vip_timestamp = '2099-12-31T23:59:59Z';
-        }
-        if ('expiry_date' in obj) {
-            obj.expiry_date = '2099-12-31T23:59:59Z';
-        }
-
-        // Arrays mein unlock
-        if (Array.isArray(obj)) {
-            obj.forEach(item => unlockObject(item));
-        } else {
-            Object.keys(obj).forEach(key => {
-                if (typeof obj[key] === 'object' && obj[key] !== null) {
-                    unlockObject(obj[key]);
-                }
-            });
-        }
-
-        return obj;
-    };
-
-    return unlockObject(data);
-}
-
-// ==========================================
-// 🏷️ BRANDING ADD
-// ==========================================
-function addBrandingToAll(obj) {
-    if (!obj || typeof obj !== 'object') return obj;
-    
-    if (Array.isArray(obj)) {
-        return obj.map(item => addBrandingToAll(item));
-    }
-
-    const brandingFields = [
-        'fullname', 'name', 'display_name', 'username', 
-        'creator_name', 'author_name', 'artist_name',
-        'title', 'description', 'bio', 'about'
-    ];
-
-    Object.keys(obj).forEach(key => {
-        if (brandingFields.includes(key) && typeof obj[key] === 'string') {
-            if (!obj[key].includes(APP_CONFIG.branding)) {
-                obj[key] = obj[key] + APP_CONFIG.branding;
-            }
-        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-            addBrandingToAll(obj[key]);
-        }
-    });
-
-    return obj;
-}
-
-// ==========================================
-// 🛠 BUILD HEADERS
-// ==========================================
-function buildHeaders(req) {
-    const headers = {};
-
-    // Original headers copy
-    if (req.headers) {
-        Object.keys(req.headers).forEach(key => {
-            const lowerKey = key.toLowerCase();
-            if (!['accept-encoding', 'content-length', 'host', 'connection'].includes(lowerKey)) {
-                headers[key] = req.headers[key];
-            }
-        });
-    }
-
-    // Auth headers
-    headers['authorization'] = 'Bearer ' + APP_CONFIG.accessToken;
-    headers['access-token'] = APP_CONFIG.accessToken;
-    headers['jwt-access-token'] = APP_CONFIG.accessToken;
-    headers['auth-token'] = APP_CONFIG.accessToken;
-    headers['jwt-auth-token'] = APP_CONFIG.accessToken;
-    headers['x-access-token'] = APP_CONFIG.accessToken;
-    
-    // Device headers
-    headers['device-id'] = APP_CONFIG.deviceId;
-    headers['x-device-id'] = APP_CONFIG.deviceId;
-    headers['session-id'] = APP_CONFIG.sessionId;
-    headers['app-instance-id'] = APP_CONFIG.appInstanceId;
-    headers['ad-id'] = APP_CONFIG.adId;
-    headers['uid'] = APP_CONFIG.uid;
-    headers['user-id'] = APP_CONFIG.uid;
-    headers['profile-id'] = APP_CONFIG.profileId;
-    
-    // App headers
-    headers['app-version'] = APP_CONFIG.appVersion;
-    headers['version-name'] = APP_CONFIG.versionName;
-    headers['platform'] = APP_CONFIG.platform;
-    headers['platform-version'] = APP_CONFIG.platformVersion;
-    headers['user-agent'] = APP_CONFIG.userAgent;
-    
-    // Content headers
-    headers['accept'] = 'application/json';
-    headers['content-type'] = 'application/json';
-    headers['accept-language'] = 'en-IN';
-    
-    // Premium bypass headers
-    headers['x-premium'] = 'true';
-    headers['x-unlock'] = 'true';
-    headers['x-bypass'] = 'true';
-
-    // Fullname in base64
-    headers['fullname'] = Buffer.from(APP_CONFIG.fullname + ' (Premium)').toString('base64');
-    
-    return headers;
-}
-
-// ==========================================
-// 🛠 GET TARGET URL
+// 🛠 GET TARGET URL - FIXED
 // ==========================================
 function getTargetUrl(cleanPath) {
-    if (cleanPath.includes('api.pocketfm.com') || 
+    if (cleanPath.includes('/api.pocketfm.com') || 
         cleanPath.includes('/v2/') || 
         cleanPath.includes('/v3/') ||
         cleanPath.includes('/v1/')) {
@@ -333,11 +362,62 @@ function getTargetUrl(cleanPath) {
     if (cleanPath.includes('analytics.pocketfm.com')) {
         return 'https://analytics.pocketfm.com';
     }
-    if (cleanPath.includes('cloudfront.net')) {
+    if (cleanPath.includes('cloudfront.net') || 
+        cleanPath.includes('d2wxtuh5s9v3ty.cloudfront.net') ||
+        cleanPath.includes('ddqs490ahjgsl.cloudfront.net') ||
+        cleanPath.includes('d13yevwzck7i9p.cloudfront.net')) {
         return 'https://' + cleanPath.split('/')[2];
+    }
+    if (cleanPath.includes('gateway.unityads.unity3d.com')) {
+        return 'https://gateway.unityads.unity3d.com';
+    }
+    if (cleanPath.includes('dns.google')) {
+        return 'https://dns.google';
     }
     if (cleanPath.includes('firebase')) {
         return 'https://firebaselogging-pa.googleapis.com';
     }
     return 'https://api.pocketfm.com';
+}
+
+// ==========================================
+// 🛠 BUILD HEADERS - FIXED
+// ==========================================
+function buildHeaders(req) {
+    const headers = {};
+
+    if (req.headers) {
+        Object.keys(req.headers).forEach(key => {
+            if (!['accept-encoding', 'content-length', 'host', 'connection', 'x-forwarded-for', 'x-real-ip'].includes(key.toLowerCase())) {
+                headers[key] = req.headers[key];
+            }
+        });
+    }
+
+    // Essential headers
+    headers['device-id'] = APP_CONFIG.deviceId;
+    headers['x-device-id'] = APP_CONFIG.deviceId;
+    headers['session-id'] = APP_CONFIG.sessionId;
+    headers['app-instance-id'] = APP_CONFIG.appInstanceId;
+    headers['ad-id'] = APP_CONFIG.adId;
+    headers['uid'] = APP_CONFIG.uid;
+    headers['user-id'] = APP_CONFIG.uid;
+    headers['profile-id'] = APP_CONFIG.profileId;
+    headers['app-version'] = APP_CONFIG.appVersion;
+    headers['version-name'] = APP_CONFIG.versionName;
+    headers['platform'] = APP_CONFIG.platform;
+    headers['platform-version'] = APP_CONFIG.platformVersion;
+    headers['user-agent'] = APP_CONFIG.userAgent;
+    headers['accept'] = 'application/json';
+    headers['content-type'] = 'application/json';
+    headers['authorization'] = 'Bearer ' + APP_CONFIG.accessToken;
+    headers['access-token'] = APP_CONFIG.accessToken;
+    headers['jwt-access-token'] = APP_CONFIG.accessToken;
+    headers['auth-token'] = APP_CONFIG.accessToken;
+    headers['jwt-auth-token'] = APP_CONFIG.accessToken;
+    headers['fullname'] = Buffer.from(APP_CONFIG.fullname).toString('base64');
+    headers['x-app-version'] = APP_CONFIG.appVersion;
+    headers['x-platform'] = APP_CONFIG.platform;
+    
+    return headers;
 }
